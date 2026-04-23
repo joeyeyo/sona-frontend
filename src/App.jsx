@@ -8,6 +8,7 @@ const WORKSTREAMS = [
     color: "#FF6B35",
     templates: [
       "Write 3 Instagram posts for my event",
+      "Generate 3 Instagram image briefs I can make in Canva",
       "Create a posting schedule for the next 3 weeks",
       "Write DM outreach copy for my network",
       "Write an event description for the invite page",
@@ -89,7 +90,7 @@ EVENT DETAILS:
 ${event.additionalContext ? `- Additional context: ${event.additionalContext}` : ""}
 
 YOUR ROLE:
-Generate ready-to-use content the host can copy and send immediately with minimal editing. Be specific, use the actual event name, date, and venue in your outputs. Write like a founder, not a marketer — authentic, punchy, no corporate speak. When writing Instagram content, make it feel personal and real. Always reference the specific event details above.`;
+When generating image briefs for Canva, format each one clearly with: Format (e.g. 1080x1080), Background, Text overlay, Font mood, Color palette, and Mood/vibe. Make them specific and actionable so a non-designer can execute immediately.`;
 }
 
 function SetupPanel({ event, onSave, onClose }) {
