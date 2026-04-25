@@ -156,7 +156,6 @@ function VendorCard({ vendor, onDraftEmail }) {
 }
 
 // ── Vendor Search Panel ───────────────────────────────────────────────────────
-// State is lifted to parent so results persist when switching tabs
 function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, setSummary, searched, setSearched }) {
   const [searchParams, setSearchParams] = useState({
     keywords: "asian food",
@@ -167,13 +166,19 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
     location: event.city || "Los Angeles, CA",
   });
   const [loading, setLoading] = useState(false);
+  const abortRef = useRef(null);
 
   const search = async () => {
+    // Create a new AbortController for this search
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
+
     try {
       const response = await fetch(`${RAILWAY_URL}/search-vendors`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           ...searchParams,
           budget: parseFloat(searchParams.budget),
@@ -187,9 +192,20 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
       setSummary({ total: data.total, emails_found: data.emails_found });
       setSearched(true);
     } catch (err) {
-      console.error(err);
+      if (err.name === "AbortError") {
+        // Search was cancelled — do nothing, keep any existing results
+      } else {
+        console.error(err);
+      }
     } finally {
       setLoading(false);
+      abortRef.current = null;
+    }
+  };
+
+  const cancel = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
     }
   };
 
@@ -215,7 +231,8 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
                 value={searchParams[key]}
                 onChange={e => setSearchParams(p => ({ ...p, [key]: e.target.value }))}
                 placeholder={placeholder}
-                style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                disabled={loading}
+                style={{ width: "100%", background: loading ? "#080810" : "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: loading ? "#5A5A7A" : "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box", transition: "all 0.2s" }}
               />
             </div>
           ))}
@@ -224,19 +241,65 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
             <select
               value={searchParams.category}
               onChange={e => setSearchParams(p => ({ ...p, category: e.target.value }))}
-              style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+              disabled={loading}
+              style={{ width: "100%", background: loading ? "#080810" : "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: loading ? "#5A5A7A" : "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
             >
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>
-        <button
-          onClick={search}
-          disabled={loading}
-          style={{ width: "100%", background: loading ? "#1A1A2E" : "linear-gradient(135deg, #00D4FF, #0088AA)", border: "none", borderRadius: "10px", padding: "12px", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em", cursor: loading ? "not-allowed" : "pointer" }}
-        >
-          {loading ? "SEARCHING & FINDING EMAILS..." : "SEARCH VENDORS →"}
-        </button>
+
+        {/* Search / Cancel button row */}
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            onClick={loading ? undefined : search}
+            disabled={loading}
+            style={{
+              flex: 1,
+              background: loading ? "#0A0A18" : "linear-gradient(135deg, #00D4FF, #0088AA)",
+              border: loading ? "1px solid #1A1A2E" : "none",
+              borderRadius: "10px", padding: "12px",
+              color: loading ? "#3A3A5A" : "white",
+              fontFamily: "'Space Mono', monospace", fontSize: "12px",
+              letterSpacing: "0.08em", cursor: loading ? "not-allowed" : "pointer",
+              transition: "all 0.2s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+            }}
+          >
+            {loading && (
+              <span style={{
+                width: "12px", height: "12px", borderRadius: "50%",
+                border: "2px solid #3A3A5A", borderTopColor: "#00D4FF",
+                display: "inline-block", animation: "spin 0.8s linear infinite", flexShrink: 0,
+              }} />
+            )}
+            {loading ? "SEARCHING & FINDING EMAILS..." : "SEARCH VENDORS →"}
+          </button>
+
+          {/* Cancel button — only visible while loading */}
+          {loading && (
+            <button
+              onClick={cancel}
+              style={{
+                background: "transparent",
+                border: "1px solid #FF3E9A44",
+                borderRadius: "10px",
+                padding: "12px 18px",
+                color: "#FF3E9A",
+                fontFamily: "'Space Mono', monospace",
+                fontSize: "11px",
+                letterSpacing: "0.08em",
+                cursor: "pointer",
+                transition: "all 0.15s",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#FF3E9A11"; e.currentTarget.style.borderColor = "#FF3E9A88"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#FF3E9A44"; }}
+            >
+              ✕ CANCEL
+            </button>
+          )}
+        </div>
       </div>
 
       {searched && summary && (
@@ -385,7 +448,6 @@ export default function SonaAgent() {
     try { const s = localStorage.getItem("sona_history"); return s ? JSON.parse(s) : DEFAULT_ALL_HISTORY; } catch { return DEFAULT_ALL_HISTORY; }
   });
 
-  // Vendor search state lifted here so it persists across tab switches
   const [vendorResults, setVendorResults] = useState([]);
   const [vendorSummary, setVendorSummary] = useState(null);
   const [vendorSearched, setVendorSearched] = useState(false);
@@ -461,7 +523,6 @@ export default function SonaAgent() {
     sendMessage(prompt, "vendors");
   };
 
-  // Per-workstream reset — clears chat and vendor results if on vendors tab
   const handleClear = () => {
     const reset = { ...allMessages, [activeWorkstream]: [INITIAL_MESSAGE(activeWorkstream)] };
     const resetHistory = { ...allHistory, [activeWorkstream]: [] };
@@ -495,6 +556,7 @@ export default function SonaAgent() {
         ::-webkit-scrollbar-thumb { background: #2A2A4A; border-radius: 2px; }
         @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-6px); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .ws-btn { background: transparent; border: 1px solid #1A1A2E; border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all 0.2s ease; text-align: left; width: 100%; }
         .ws-btn:hover { border-color: #2A2A4A; background: #0F0F1A; }
         .ws-btn.active { background: #0F0F1A; }
@@ -520,8 +582,10 @@ export default function SonaAgent() {
         {/* Sidebar */}
         <div style={{ width: "260px", flexShrink: 0, borderRight: "1px solid #0F0F1A", display: "flex", flexDirection: "column", padding: "24px 16px", gap: "8px", overflowY: "auto" }}>
           <div style={{ marginBottom: "20px", paddingLeft: "4px" }}>
-<div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "42px", letterSpacing: "0.12em", background: "linear-gradient(135deg, #FF6B35, #FF3E9A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1, textShadow: "none", filter: "drop-shadow(0 0 20px #FF6B3566)" }}>SONA</div>
-<div style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: "#FF6B3566", letterSpacing: "0.2em", marginTop: "4px" }}>EVENT INTELLIGENCE</div>          </div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "42px", letterSpacing: "0.12em", background: "linear-gradient(135deg, #FF6B35, #FF3E9A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1, filter: "drop-shadow(0 0 20px #FF6B3566)" }}>SONA</div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: "#FF6B3566", letterSpacing: "0.2em", marginTop: "4px" }}>EVENT INTELLIGENCE</div>
+          </div>
+
           <button className="setup-btn" onClick={() => setShowSetup(true)} style={{ marginBottom: "8px" }}>
             <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.1em", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
               <span>ACTIVE EVENT</span><span style={{ color: "#FF6B35" }}>✦ EDIT</span>
@@ -561,7 +625,6 @@ export default function SonaAgent() {
             ) : null;
           })()}
 
-          {/* Per-workstream reset button */}
           <button className="clear-btn" onClick={handleClear} style={{ marginTop: "auto" }}>
             RESET {activeWorkstream.toUpperCase()} ↺
           </button>
@@ -569,7 +632,6 @@ export default function SonaAgent() {
 
         {/* Main area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          {/* Header */}
           <div style={{ padding: "16px 28px", borderBottom: "1px solid #0F0F1A", display: "flex", alignItems: "center", gap: "12px" }}>
             {(() => {
               const ws = WORKSTREAMS.find(w => w.id === activeWorkstream);
@@ -605,7 +667,6 @@ export default function SonaAgent() {
             })()}
           </div>
 
-          {/* Content */}
           {isVendors && vendorView === "search" ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
               <VendorSearchPanel
