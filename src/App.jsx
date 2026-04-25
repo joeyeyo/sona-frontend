@@ -520,10 +520,8 @@ export default function SonaAgent() {
         {/* Sidebar */}
         <div style={{ width: "260px", flexShrink: 0, borderRight: "1px solid #0F0F1A", display: "flex", flexDirection: "column", padding: "24px 16px", gap: "8px", overflowY: "auto" }}>
           <div style={{ marginBottom: "20px", paddingLeft: "4px" }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "28px", letterSpacing: "0.08em", background: "linear-gradient(135deg, #FF6B35, #FF3E9A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1 }}>SONA</div>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: "#3A3A5A", letterSpacing: "0.15em", marginTop: "3px" }}>EVENT INTELLIGENCE</div>
-          </div>
-
+<div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "42px", letterSpacing: "0.12em", background: "linear-gradient(135deg, #FF6B35, #FF3E9A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1, textShadow: "none", filter: "drop-shadow(0 0 20px #FF6B3566)" }}>SONA</div>
+<div style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: "#FF6B3566", letterSpacing: "0.2em", marginTop: "4px" }}>EVENT INTELLIGENCE</div>          </div>
           <button className="setup-btn" onClick={() => setShowSetup(true)} style={{ marginBottom: "8px" }}>
             <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.1em", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
               <span>ACTIVE EVENT</span><span style={{ color: "#FF6B35" }}>✦ EDIT</span>
