@@ -651,8 +651,8 @@ export default function SonaAgent() {
                 <div ref={bottomRef} />
               </div>
               <div style={{ padding: "16px 28px 24px", borderTop: "1px solid #0F0F1A" }}>
-                <div style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "14px", padding: "14px 14px 14px 18px", display: "flex", alignItems: "flex-end", gap: "12px" }}>
-                  <textarea rows={1} value={input}
+                <div onClick={() => document.querySelector('textarea').focus()} style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "14px", padding: "14px 14px 14px 18px", display: "flex", alignItems: "flex-end", gap: "12px", cursor: "text" }}>
+                  <textarea rows={1} value={input} style={{ alignSelf: "stretch" }}
                     onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
                     onKeyDown={handleKey}
                     placeholder={`Ask Sona about ${WORKSTREAMS.find(w => w.id === activeWorkstream)?.label.toLowerCase()}...`}
