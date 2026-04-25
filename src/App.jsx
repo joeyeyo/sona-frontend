@@ -72,7 +72,7 @@ When generating Canva image briefs: Format, Background, Text overlay, Font mood,
 }
 
 // ── Gmail Compose Modal ───────────────────────────────────────────────────────
-function GmailModal({ vendor, draftContent, onClose }) {
+function GmailModal({ vendor, draftContent, onClose, onSent }) {
   const [to, setTo] = useState(vendor?.email || "");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -116,6 +116,7 @@ function GmailModal({ vendor, draftContent, onClose }) {
       const data = await resp.json();
       if (data.status === "sent") {
         setSent(true);
+        onSent(vendor.id); // mark this vendor as emailed
         setTimeout(onClose, 2000);
       } else {
         setError(data.error || "Failed to send. Try again.");
@@ -149,18 +150,13 @@ function GmailModal({ vendor, draftContent, onClose }) {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E1E35"; e.currentTarget.style.color = "#5A5A7A"; }}>✕</button>
         </div>
 
-        {/* Fields */}
         <div style={{ display: "flex", flexDirection: "column", padding: "0 24px", overflowY: "auto", flex: 1 }}>
           {/* To */}
           <div style={{ borderBottom: "1px solid #1E1E35", padding: "14px 0", display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.08em", width: "60px", flexShrink: 0 }}>TO</div>
             <input value={to} onChange={e => setTo(e.target.value)} placeholder="vendor@email.com"
               style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: hasEmail ? "#E8E8F0" : "#FF3E9A", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }} />
-            {!hasEmail && (
-              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF3E9A", background: "#FF3E9A11", border: "1px solid #FF3E9A33", borderRadius: "6px", padding: "3px 8px", whiteSpace: "nowrap" }}>
-                NO EMAIL FOUND
-              </div>
-            )}
+            {!hasEmail && <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF3E9A", background: "#FF3E9A11", border: "1px solid #FF3E9A33", borderRadius: "6px", padding: "3px 8px", whiteSpace: "nowrap" }}>NO EMAIL FOUND</div>}
             {hasEmail && <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓</div>}
           </div>
 
@@ -202,9 +198,48 @@ function GmailModal({ vendor, draftContent, onClose }) {
 }
 
 // ── Vendor Card ───────────────────────────────────────────────────────────────
-function VendorCard({ vendor, onDraftEmail, generatingFor }) {
+function VendorCard({ vendor, onDraftEmail, generatingFor, sentVendorIds }) {
+  const [hoveringBtn, setHoveringBtn] = useState(false);
   const stars = "★".repeat(Math.floor(vendor.rating)) + (vendor.rating % 1 >= 0.5 ? "½" : "");
   const isGenerating = generatingFor === vendor.id;
+  const isSent = sentVendorIds.has(vendor.id);
+
+  // Button label/style based on state
+  const btnLabel = isGenerating
+    ? null
+    : isSent
+      ? (hoveringBtn ? "↺ RESEND" : "✓ EMAILED")
+      : "✉ DRAFT EMAIL";
+
+  const btnStyle = {
+    flex: 1,
+    background: isGenerating
+      ? "#0A0A18"
+      : isSent
+        ? hoveringBtn ? "linear-gradient(135deg, #00D4FF22, #00D4FF11)" : "linear-gradient(135deg, #A8FF3E18, #A8FF3E08)"
+        : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
+    border: isGenerating
+      ? "1px solid #1A1A2E"
+      : isSent
+        ? hoveringBtn ? "1px solid #00D4FF44" : "1px solid #A8FF3E44"
+        : "1px solid #00D4FF44",
+    borderRadius: "8px",
+    padding: "8px",
+    color: isGenerating
+      ? "#3A3A5A"
+      : isSent
+        ? hoveringBtn ? "#00D4FF" : "#A8FF3E"
+        : "#00D4FF",
+    fontFamily: "'Space Mono', monospace",
+    fontSize: "10px",
+    letterSpacing: "0.05em",
+    cursor: isGenerating ? "not-allowed" : "pointer",
+    transition: "all 0.15s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+  };
 
   return (
     <div
@@ -221,6 +256,18 @@ function VendorCard({ vendor, onDraftEmail, generatingFor }) {
               {vendor.categories?.[0]}
             </span>
           </div>
+          {/* Sent badge on image */}
+          {isSent && (
+            <div style={{ position: "absolute", top: "8px", right: "8px", background: "#A8FF3ECC", borderRadius: "6px", padding: "3px 8px", fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#07070F", letterSpacing: "0.08em" }}>
+              ✓ EMAILED
+            </div>
+          )}
+        </div>
+      )}
+      {/* Sent banner if no image */}
+      {!vendor.image_url && isSent && (
+        <div style={{ background: "linear-gradient(135deg, #A8FF3E18, #A8FF3E08)", borderBottom: "1px solid #A8FF3E33", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" }}>
+          <span style={{ fontSize: "10px", color: "#A8FF3E", fontFamily: "'Space Mono', monospace", letterSpacing: "0.08em" }}>✓ EMAIL SENT</span>
         </div>
       )}
       <div style={{ padding: "14px" }}>
@@ -247,21 +294,13 @@ function VendorCard({ vendor, onDraftEmail, generatingFor }) {
           <button
             onClick={() => onDraftEmail(vendor)}
             disabled={isGenerating}
-            style={{
-              flex: 1,
-              background: isGenerating ? "#0A0A18" : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
-              border: "1px solid #00D4FF44", borderRadius: "8px", padding: "8px",
-              color: isGenerating ? "#3A3A5A" : "#00D4FF",
-              fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em",
-              cursor: isGenerating ? "not-allowed" : "pointer", transition: "all 0.15s",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-            }}
-            onMouseEnter={e => { if (!isGenerating) e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF33, #00D4FF22)"; }}
-            onMouseLeave={e => { if (!isGenerating) e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF22, #00D4FF11)"; }}
+            style={btnStyle}
+            onMouseEnter={() => setHoveringBtn(true)}
+            onMouseLeave={() => setHoveringBtn(false)}
           >
             {isGenerating ? (
               <><span style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />DRAFTING...</>
-            ) : "✉ DRAFT EMAIL"}
+            ) : btnLabel}
           </button>
           <a href={vendor.url} target="_blank" rel="noopener noreferrer"
             style={{ padding: "8px 12px", background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", textDecoration: "none", transition: "all 0.15s", display: "flex", alignItems: "center" }}
@@ -275,7 +314,7 @@ function VendorCard({ vendor, onDraftEmail, generatingFor }) {
 }
 
 // ── Vendor Search Panel ───────────────────────────────────────────────────────
-function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, setSummary, searched, setSearched, generatingFor }) {
+function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, setSummary, searched, setSearched, generatingFor, sentVendorIds }) {
   const [searchParams, setSearchParams] = useState({
     keywords: "asian food", category: "caterers",
     budget: event.budget || "600", guest_count: event.guestCount || "50",
@@ -323,6 +362,8 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
     color: disabled ? "#5A5A7A" : "#E8E8F0", fontFamily: "'DM Sans', sans-serif",
     fontSize: "13px", outline: "none", boxSizing: "border-box", transition: "all 0.2s",
   });
+
+  const sentCount = vendors.filter(v => sentVendorIds.has(v.id)).length;
 
   return (
     <div style={{ padding: "28px", overflowY: "auto", height: "100%" }}>
@@ -374,17 +415,28 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
       </div>
 
       {searched && summary && (
-        <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", letterSpacing: "0.1em", marginBottom: "16px", display: "flex", gap: "16px" }}>
+        <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", letterSpacing: "0.1em", marginBottom: "16px", display: "flex", gap: "16px", flexWrap: "wrap" }}>
           <span style={{ color: "#5A5A7A" }}>{summary.total} VENDORS FOUND</span>
           <span style={{ color: "#A8FF3E" }}>{summary.emails_found} EMAILS FOUND</span>
           <span style={{ color: "#FF6B35" }}>RANKED BY SCORE ↑</span>
+          {sentCount > 0 && (
+            <span style={{ color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "1px 8px" }}>
+              ✓ {sentCount} EMAILED
+            </span>
+          )}
         </div>
       )}
 
       {searched && vendors.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
           {vendors.map(vendor => (
-            <VendorCard key={vendor.id} vendor={vendor} onDraftEmail={onDraftEmail} generatingFor={generatingFor} />
+            <VendorCard
+              key={vendor.id}
+              vendor={vendor}
+              onDraftEmail={onDraftEmail}
+              generatingFor={generatingFor}
+              sentVendorIds={sentVendorIds}
+            />
           ))}
         </div>
       )}
@@ -517,11 +569,16 @@ export default function SonaAgent() {
     try { const s = localStorage.getItem("sona_history"); return s ? JSON.parse(s) : DEFAULT_ALL_HISTORY; } catch { return DEFAULT_ALL_HISTORY; }
   });
 
+  // Persisted sent vendor ids
+  const [sentVendorIds, setSentVendorIds] = useState(() => {
+    try { const s = localStorage.getItem("sona_sent_vendors"); return new Set(s ? JSON.parse(s) : []); } catch { return new Set(); }
+  });
+
   const [vendorResults, setVendorResults] = useState([]);
   const [vendorSummary, setVendorSummary] = useState(null);
   const [vendorSearched, setVendorSearched] = useState(false);
-  const [generatingFor, setGeneratingFor] = useState(null); // vendor id being drafted
-  const [gmailModal, setGmailModal] = useState(null); // { vendor, draftContent }
+  const [generatingFor, setGeneratingFor] = useState(null);
+  const [gmailModal, setGmailModal] = useState(null);
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -536,6 +593,15 @@ export default function SonaAgent() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
   useEffect(() => { try { localStorage.setItem("sona_messages", JSON.stringify(allMessages)); } catch {} }, [allMessages]);
   useEffect(() => { try { localStorage.setItem("sona_history", JSON.stringify(allHistory)); } catch {} }, [allHistory]);
+
+  const markVendorSent = (vendorId) => {
+    setSentVendorIds(prev => {
+      const next = new Set(prev);
+      next.add(vendorId);
+      try { localStorage.setItem("sona_sent_vendors", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
 
   const saveEvent = (newEvent) => {
     setEvent(newEvent);
@@ -586,10 +652,8 @@ export default function SonaAgent() {
     }
   };
 
-  // Draft email — stays on vendor search page, opens modal when done
   const handleDraftEmail = async (vendor) => {
     setGeneratingFor(vendor.id);
-
     const emailLine = vendor.email ? `Their email is ${vendor.email}.` : `No email found — use their phone ${vendor.phone}.`;
     const prompt = `Draft a professional outreach email to ${vendor.name} (located at ${vendor.address}). ${emailLine} I'm looking for catering for my event with ${event.guestCount || "50"} guests, budget under $${event.budget || "600"}. The event is ${event.name || "an AI networking night"} on ${event.date || "upcoming"}. Make it friendly, specific, and ask about their availability and pricing. Format your response as:
 
@@ -615,7 +679,6 @@ Subject: [subject line here]
       });
       const data = await response.json();
       const draft = data.content?.[0]?.text || "";
-      // Open modal — stay on vendor search page
       setGmailModal({ vendor, draftContent: draft });
     } catch (e) {
       console.error("Draft error:", e);
@@ -678,7 +741,14 @@ Subject: [subject line here]
       `}</style>
 
       {showSetup && <SetupPanel event={event} onSave={saveEvent} onClose={() => setShowSetup(false)} />}
-      {gmailModal && <GmailModal vendor={gmailModal.vendor} draftContent={gmailModal.draftContent} onClose={() => setGmailModal(null)} />}
+      {gmailModal && (
+        <GmailModal
+          vendor={gmailModal.vendor}
+          draftContent={gmailModal.draftContent}
+          onClose={() => setGmailModal(null)}
+          onSent={markVendorSent}
+        />
+      )}
 
       <div style={{ display: "flex", height: "100vh", background: "#07070F", fontFamily: "'DM Sans', sans-serif" }}>
         {/* Sidebar */}
@@ -779,6 +849,7 @@ Subject: [subject line here]
                 searched={vendorSearched}
                 setSearched={setVendorSearched}
                 generatingFor={generatingFor}
+                sentVendorIds={sentVendorIds}
               />
             </div>
           ) : (
