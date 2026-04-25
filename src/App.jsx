@@ -86,7 +86,6 @@ When generating Canva image briefs: Format, Background, Text overlay, Font mood,
 // ── Vendor Card ───────────────────────────────────────────────────────────────
 function VendorCard({ vendor, onDraftEmail }) {
   const stars = "★".repeat(Math.floor(vendor.rating)) + (vendor.rating % 1 >= 0.5 ? "½" : "");
-
   return (
     <div
       style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", overflow: "hidden", transition: "border-color 0.2s" }}
@@ -106,8 +105,6 @@ function VendorCard({ vendor, onDraftEmail }) {
       )}
       <div style={{ padding: "14px" }}>
         <div style={{ fontSize: "14px", fontWeight: 600, color: "#E8E8F0", marginBottom: "4px" }}>{vendor.name}</div>
-
-        {/* Rating row with score */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
           <span style={{ color: "#FFB800", fontSize: "12px" }}>{stars}</span>
           <span style={{ fontSize: "12px", color: "#00D4FF", fontWeight: 600 }}>{vendor.rating}</span>
@@ -121,15 +118,9 @@ function VendorCard({ vendor, onDraftEmail }) {
             </span>
           )}
         </div>
-
-        {/* Email (green if found) */}
         {vendor.email && (
-          <div style={{ fontSize: "11px", color: "#A8FF3E", marginBottom: "6px" }}>
-            ✉ {vendor.email}
-          </div>
+          <div style={{ fontSize: "11px", color: "#A8FF3E", marginBottom: "6px" }}>✉ {vendor.email}</div>
         )}
-
-        {/* Website if no email */}
         {vendor.website && !vendor.email && (
           <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "6px" }}>
             🌐 <a href={vendor.website} target="_blank" rel="noopener noreferrer" style={{ color: "#5A5A7A" }}>
@@ -137,36 +128,27 @@ function VendorCard({ vendor, onDraftEmail }) {
             </a>
           </div>
         )}
-
-        {/* AI reason */}
         {vendor.ai_reason && (
           <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.5, marginBottom: "10px", fontStyle: "italic" }}>
             "{vendor.ai_reason}"
           </div>
         )}
-
         <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "4px" }}>📍 {vendor.address}</div>
         {vendor.phone && vendor.phone !== "N/A" && (
           <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "10px" }}>📞 {vendor.phone}</div>
         )}
-
         <div style={{ display: "flex", gap: "8px" }}>
           <button
             onClick={() => onDraftEmail(vendor)}
             style={{ flex: 1, background: "linear-gradient(135deg, #00D4FF22, #00D4FF11)", border: "1px solid #00D4FF44", borderRadius: "8px", padding: "8px", color: "#00D4FF", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", cursor: "pointer", transition: "all 0.15s" }}
             onMouseEnter={e => e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF33, #00D4FF22)"}
             onMouseLeave={e => e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF22, #00D4FF11)"}
-          >
-            ✉ DRAFT EMAIL
-          </button>
-          <a
-            href={vendor.url} target="_blank" rel="noopener noreferrer"
+          >✉ DRAFT EMAIL</button>
+          <a href={vendor.url} target="_blank" rel="noopener noreferrer"
             style={{ padding: "8px 12px", background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", textDecoration: "none", transition: "all 0.15s", display: "flex", alignItems: "center" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#2A2A4A"; e.currentTarget.style.color = "#E8E8F0"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#1A1A2E"; e.currentTarget.style.color = "#5A5A7A"; }}
-          >
-            YELP ↗
-          </a>
+          >YELP ↗</a>
         </div>
       </div>
     </div>
@@ -174,7 +156,8 @@ function VendorCard({ vendor, onDraftEmail }) {
 }
 
 // ── Vendor Search Panel ───────────────────────────────────────────────────────
-function VendorSearchPanel({ event, onDraftEmail }) {
+// State is lifted to parent so results persist when switching tabs
+function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, setSummary, searched, setSearched }) {
   const [searchParams, setSearchParams] = useState({
     keywords: "asian food",
     category: "caterers",
@@ -183,10 +166,7 @@ function VendorSearchPanel({ event, onDraftEmail }) {
     min_rating: "4.25",
     location: event.city || "Los Angeles, CA",
   });
-  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [summary, setSummary] = useState(null);
 
   const search = async () => {
     setLoading(true);
@@ -217,7 +197,6 @@ function VendorSearchPanel({ event, onDraftEmail }) {
 
   return (
     <div style={{ padding: "28px", overflowY: "auto", height: "100%" }}>
-      {/* Search form */}
       <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
         <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.1em", marginBottom: "16px" }}>
           🔍 VENDOR SEARCH
@@ -260,7 +239,6 @@ function VendorSearchPanel({ event, onDraftEmail }) {
         </button>
       </div>
 
-      {/* Results summary */}
       {searched && summary && (
         <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", letterSpacing: "0.1em", marginBottom: "16px", display: "flex", gap: "16px" }}>
           <span style={{ color: "#5A5A7A" }}>{summary.total} VENDORS FOUND</span>
@@ -269,7 +247,6 @@ function VendorSearchPanel({ event, onDraftEmail }) {
         </div>
       )}
 
-      {/* Results grid */}
       {searched && vendors.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
           {vendors.map(vendor => (
@@ -407,11 +384,18 @@ export default function SonaAgent() {
   const [allHistory, setAllHistory] = useState(() => {
     try { const s = localStorage.getItem("sona_history"); return s ? JSON.parse(s) : DEFAULT_ALL_HISTORY; } catch { return DEFAULT_ALL_HISTORY; }
   });
+
+  // Vendor search state lifted here so it persists across tab switches
+  const [vendorResults, setVendorResults] = useState([]);
+  const [vendorSummary, setVendorSummary] = useState(null);
+  const [vendorSearched, setVendorSearched] = useState(false);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeWorkstream, setActiveWorkstream] = useState("marketing");
   const [vendorView, setVendorView] = useState("search");
   const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const messages = allMessages[activeWorkstream];
   const history = allHistory[activeWorkstream];
@@ -477,13 +461,28 @@ export default function SonaAgent() {
     sendMessage(prompt, "vendors");
   };
 
+  // Per-workstream reset — clears chat and vendor results if on vendors tab
+  const handleClear = () => {
+    const reset = { ...allMessages, [activeWorkstream]: [INITIAL_MESSAGE(activeWorkstream)] };
+    const resetHistory = { ...allHistory, [activeWorkstream]: [] };
+    setAllMessages(reset);
+    setAllHistory(resetHistory);
+    try { localStorage.setItem("sona_messages", JSON.stringify(reset)); } catch {}
+    try { localStorage.setItem("sona_history", JSON.stringify(resetHistory)); } catch {}
+    if (activeWorkstream === "vendors") {
+      setVendorResults([]);
+      setVendorSummary(null);
+      setVendorSearched(false);
+      setVendorView("search");
+    }
+  };
+
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (input.trim() && !loading) sendMessage(input.trim()); }
   };
 
   const eventConfigured = event.name || event.date || event.venue;
   const isVendors = activeWorkstream === "vendors";
-  const textareaRef = useRef(null);
 
   return (
     <>
@@ -508,6 +507,8 @@ export default function SonaAgent() {
         .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .msg-animate { animation: fadeIn 0.3s ease forwards; }
         .input-box { background: #0F0F1A; border: 1px solid #1A1A2E; border-radius: 14px; padding: 14px 14px 14px 18px; display: flex; align-items: flex-end; gap: 12px; cursor: text; }
+        .clear-btn { background: transparent; border: 1px solid #1A1A2E; border-radius: 8px; padding: 8px; cursor: pointer; font-size: 11px; font-family: 'Space Mono', monospace; color: #3A3A5A; letter-spacing: 0.05em; transition: all 0.15s; width: 100%; }
+        .clear-btn:hover { border-color: #FF3E9A44; color: #FF3E9A; }
         textarea, input, select { background: transparent; border: none; outline: none; color: #E8E8F0; font-family: 'DM Sans', sans-serif; font-size: 14px; resize: none; width: 100%; line-height: 1.5; }
         input::placeholder, textarea::placeholder { color: #3A3A5A; }
         select option { background: #0F0F1A; }
@@ -562,16 +563,10 @@ export default function SonaAgent() {
             ) : null;
           })()}
 
-          <button
-            onClick={() => {
-              const reset = { ...allMessages, [activeWorkstream]: [INITIAL_MESSAGE(activeWorkstream)] };
-              const resetHistory = { ...allHistory, [activeWorkstream]: [] };
-              setAllMessages(reset); setAllHistory(resetHistory);
-              try { localStorage.setItem("sona_messages", JSON.stringify(reset)); } catch {}
-              try { localStorage.setItem("sona_history", JSON.stringify(resetHistory)); } catch {}
-            }}
-            style={{ marginTop: "auto", background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px", cursor: "pointer", fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.05em" }}
-          >CLEAR CHAT</button>
+          {/* Per-workstream reset button */}
+          <button className="clear-btn" onClick={handleClear} style={{ marginTop: "auto" }}>
+            RESET {activeWorkstream.toUpperCase()} ↺
+          </button>
         </div>
 
         {/* Main area */}
@@ -615,7 +610,16 @@ export default function SonaAgent() {
           {/* Content */}
           {isVendors && vendorView === "search" ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
-              <VendorSearchPanel event={event} onDraftEmail={handleDraftEmail} />
+              <VendorSearchPanel
+                event={event}
+                onDraftEmail={handleDraftEmail}
+                vendors={vendorResults}
+                setVendors={setVendorResults}
+                summary={vendorSummary}
+                setSummary={setVendorSummary}
+                searched={vendorSearched}
+                setSearched={setVendorSearched}
+              />
             </div>
           ) : (
             <>
