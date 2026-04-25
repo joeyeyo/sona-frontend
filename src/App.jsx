@@ -4,10 +4,7 @@ const RAILWAY_URL = "https://sona-production-529e.up.railway.app";
 
 const WORKSTREAMS = [
   {
-    id: "marketing",
-    label: "Marketing",
-    icon: "📣",
-    color: "#FF6B35",
+    id: "marketing", label: "Marketing", icon: "📣", color: "#FF6B35",
     templates: [
       "Write 3 Instagram posts for my event",
       "Generate 3 Instagram image briefs I can make in Canva",
@@ -17,10 +14,7 @@ const WORKSTREAMS = [
     ],
   },
   {
-    id: "vendors",
-    label: "Vendors",
-    icon: "🤝",
-    color: "#00D4FF",
+    id: "vendors", label: "Vendors", icon: "🤝", color: "#00D4FF",
     templates: [
       "Draft a cold email to a photographer",
       "Write outreach to a catering vendor",
@@ -29,10 +23,7 @@ const WORKSTREAMS = [
     ],
   },
   {
-    id: "guests",
-    label: "Guests",
-    icon: "👥",
-    color: "#A8FF3E",
+    id: "guests", label: "Guests", icon: "👥", color: "#A8FF3E",
     templates: [
       "Write personalized invitation messages",
       "Draft a WhatsApp blast for my network",
@@ -41,10 +32,7 @@ const WORKSTREAMS = [
     ],
   },
   {
-    id: "logistics",
-    label: "Logistics",
-    icon: "📋",
-    color: "#FF3E9A",
+    id: "logistics", label: "Logistics", icon: "📋", color: "#FF3E9A",
     templates: [
       "Generate a full planning timeline",
       "Create a day-of run-of-show",
@@ -83,6 +71,237 @@ Generate ready-to-use content. Be specific, use actual event details. Write like
 When generating Canva image briefs: Format, Background, Text overlay, Font mood, Color palette, Mood/vibe.`;
 }
 
+// ── Gmail Compose Modal ───────────────────────────────────────────────────────
+function GmailModal({ vendor, draftContent, onClose }) {
+  const [to, setTo] = useState(vendor?.email || "");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  const hasEmail = to.trim().length > 0;
+
+  // Parse draft content into subject + body
+  useEffect(() => {
+    if (!draftContent) return;
+    const lines = draftContent.split("\n");
+    let subjectLine = "";
+    let bodyStart = 0;
+
+    // Look for Subject: line
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].toLowerCase().startsWith("subject:")) {
+        subjectLine = lines[i].replace(/^subject:\s*/i, "").trim();
+        bodyStart = i + 1;
+        break;
+      }
+    }
+
+    if (!subjectLine) {
+      // Generate a default subject from vendor name
+      subjectLine = `Catering inquiry for our upcoming event`;
+    }
+
+    setSubject(subjectLine);
+    setBody(lines.slice(bodyStart).join("\n").trim());
+  }, [draftContent]);
+
+  const handleSend = async () => {
+    if (!hasEmail || sending || sent) return;
+    setSending(true);
+    setError("");
+    try {
+      const resp = await fetch(`${RAILWAY_URL}/send-vendor-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: to.trim(),
+          subject: subject.trim(),
+          body: body.trim(),
+          vendor_name: vendor?.name || "vendor",
+        }),
+      });
+      const data = await resp.json();
+      if (data.status === "sent") {
+        setSent(true);
+        setTimeout(onClose, 2000);
+      } else {
+        setError(data.error || "Failed to send. Try again.");
+      }
+    } catch (e) {
+      setError("Connection error. Check Railway is running.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 200, backdropFilter: "blur(12px)",
+    }}>
+      <div style={{
+        background: "#0C0C1A",
+        border: "1px solid #1E1E35",
+        borderRadius: "20px",
+        width: "600px",
+        maxHeight: "90vh",
+        display: "flex",
+        flexDirection: "column",
+        boxShadow: "0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.1)",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "20px 24px 16px",
+          borderBottom: "1px solid #1E1E35",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div>
+            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.12em", marginBottom: "4px" }}>
+              ✉ COMPOSE EMAIL
+            </div>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: "#E8E8F0" }}>
+              {vendor?.name || "Vendor"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: "transparent", border: "1px solid #1E1E35",
+            borderRadius: "8px", width: "32px", height: "32px",
+            color: "#5A5A7A", cursor: "pointer", fontSize: "16px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.15s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#FF3E9A44"; e.currentTarget.style.color = "#FF3E9A"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E1E35"; e.currentTarget.style.color = "#5A5A7A"; }}
+          >✕</button>
+        </div>
+
+        {/* Fields */}
+        <div style={{ display: "flex", flexDirection: "column", padding: "0 24px", overflowY: "auto", flex: 1 }}>
+
+          {/* To field */}
+          <div style={{ borderBottom: "1px solid #1E1E35", padding: "14px 0", display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.08em", width: "60px", flexShrink: 0 }}>TO</div>
+            <input
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              placeholder="vendor@email.com"
+              style={{
+                flex: 1, background: "transparent", border: "none", outline: "none",
+                color: hasEmail ? "#E8E8F0" : "#FF3E9A",
+                fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
+              }}
+            />
+            {!hasEmail && (
+              <div style={{
+                fontSize: "10px", fontFamily: "'Space Mono', monospace",
+                color: "#FF3E9A", background: "#FF3E9A11",
+                border: "1px solid #FF3E9A33", borderRadius: "6px",
+                padding: "3px 8px", whiteSpace: "nowrap",
+              }}>
+                NO EMAIL FOUND
+              </div>
+            )}
+            {hasEmail && (
+              <div style={{
+                fontSize: "10px", fontFamily: "'Space Mono', monospace",
+                color: "#A8FF3E", background: "#A8FF3E11",
+                border: "1px solid #A8FF3E33", borderRadius: "6px",
+                padding: "3px 8px",
+              }}>✓</div>
+            )}
+          </div>
+
+          {/* Subject field */}
+          <div style={{ borderBottom: "1px solid #1E1E35", padding: "14px 0", display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.08em", width: "60px", flexShrink: 0 }}>SUBJECT</div>
+            <input
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder="Email subject..."
+              style={{
+                flex: 1, background: "transparent", border: "none", outline: "none",
+                color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
+              }}
+            />
+          </div>
+
+          {/* Body */}
+          <div style={{ padding: "16px 0", flex: 1 }}>
+            <textarea
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder="Write your email here..."
+              rows={12}
+              style={{
+                width: "100%", background: "transparent", border: "none", outline: "none",
+                color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
+                lineHeight: "1.7", resize: "vertical", minHeight: "240px",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "16px 24px",
+          borderTop: "1px solid #1E1E35",
+          display: "flex", alignItems: "center", gap: "12px",
+        }}>
+          {/* Send button */}
+          <button
+            onClick={handleSend}
+            disabled={!hasEmail || sending || sent}
+            style={{
+              background: sent
+                ? "linear-gradient(135deg, #A8FF3E, #4ADE80)"
+                : hasEmail
+                  ? "linear-gradient(135deg, #00D4FF, #0088AA)"
+                  : "#1A1A2E",
+              border: hasEmail ? "none" : "1px solid #2A2A4A",
+              borderRadius: "10px",
+              padding: "12px 28px",
+              color: sent ? "#07070F" : hasEmail ? "white" : "#3A3A5A",
+              fontFamily: "'Space Mono', monospace",
+              fontSize: "12px",
+              letterSpacing: "0.08em",
+              cursor: hasEmail && !sending && !sent ? "pointer" : "not-allowed",
+              transition: "all 0.2s",
+              display: "flex", alignItems: "center", gap: "8px",
+              opacity: sending ? 0.7 : 1,
+            }}
+          >
+            {sent ? "✓ SENT" : sending ? (
+              <>
+                <span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                SENDING...
+              </>
+            ) : "SEND →"}
+          </button>
+
+          {!hasEmail && (
+            <div style={{ fontSize: "12px", color: "#5A5A7A", fontFamily: "'DM Sans', sans-serif" }}>
+              Add an email address above to send
+            </div>
+          )}
+
+          {error && (
+            <div style={{ fontSize: "12px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace" }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ marginLeft: "auto", fontSize: "11px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>
+            SENDS FROM GMAIL
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Vendor Card ───────────────────────────────────────────────────────────────
 function VendorCard({ vendor, onDraftEmail }) {
   const stars = "★".repeat(Math.floor(vendor.rating)) + (vendor.rating % 1 >= 0.5 ? "½" : "");
@@ -109,18 +328,10 @@ function VendorCard({ vendor, onDraftEmail }) {
           <span style={{ color: "#FFB800", fontSize: "12px" }}>{stars}</span>
           <span style={{ fontSize: "12px", color: "#00D4FF", fontWeight: 600 }}>{vendor.rating}</span>
           <span style={{ fontSize: "11px", color: "#5A5A7A" }}>({vendor.review_count} reviews)</span>
-          {vendor.price && vendor.price !== "N/A" && (
-            <span style={{ fontSize: "11px", color: "#A8FF3E" }}>{vendor.price}</span>
-          )}
-          {vendor.score && (
-            <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", marginLeft: "auto" }}>
-              ↑{vendor.score}
-            </span>
-          )}
+          {vendor.price && vendor.price !== "N/A" && <span style={{ fontSize: "11px", color: "#A8FF3E" }}>{vendor.price}</span>}
+          {vendor.score && <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", marginLeft: "auto" }}>↑{vendor.score}</span>}
         </div>
-        {vendor.email && (
-          <div style={{ fontSize: "11px", color: "#A8FF3E", marginBottom: "6px" }}>✉ {vendor.email}</div>
-        )}
+        {vendor.email && <div style={{ fontSize: "11px", color: "#A8FF3E", marginBottom: "6px" }}>✉ {vendor.email}</div>}
         {vendor.website && !vendor.email && (
           <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "6px" }}>
             🌐 <a href={vendor.website} target="_blank" rel="noopener noreferrer" style={{ color: "#5A5A7A" }}>
@@ -128,15 +339,9 @@ function VendorCard({ vendor, onDraftEmail }) {
             </a>
           </div>
         )}
-        {vendor.ai_reason && (
-          <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.5, marginBottom: "10px", fontStyle: "italic" }}>
-            "{vendor.ai_reason}"
-          </div>
-        )}
+        {vendor.ai_reason && <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.5, marginBottom: "10px", fontStyle: "italic" }}>"{vendor.ai_reason}"</div>}
         <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "4px" }}>📍 {vendor.address}</div>
-        {vendor.phone && vendor.phone !== "N/A" && (
-          <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "10px" }}>📞 {vendor.phone}</div>
-        )}
+        {vendor.phone && vendor.phone !== "N/A" && <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "10px" }}>📞 {vendor.phone}</div>}
         <div style={{ display: "flex", gap: "8px" }}>
           <button
             onClick={() => onDraftEmail(vendor)}
@@ -158,12 +363,9 @@ function VendorCard({ vendor, onDraftEmail }) {
 // ── Vendor Search Panel ───────────────────────────────────────────────────────
 function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, setSummary, searched, setSearched }) {
   const [searchParams, setSearchParams] = useState({
-    keywords: "asian food",
-    category: "caterers",
-    budget: event.budget || "600",
-    guest_count: event.guestCount || "50",
-    min_rating: "4.25",
-    location: event.city || "Los Angeles, CA",
+    keywords: "asian food", category: "caterers",
+    budget: event.budget || "600", guest_count: event.guestCount || "50",
+    min_rating: "4.25", location: event.city || "Los Angeles, CA",
   });
   const [loading, setLoading] = useState(false);
   const abortRef = useRef(null);
@@ -199,26 +401,13 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
   };
 
   const cancel = () => { if (abortRef.current) abortRef.current.abort(); };
-
-  // Trigger search on Enter for any text input field
-  const handleInputKeyDown = (e) => {
-    if (e.key === "Enter" && !loading) search();
-  };
-
+  const handleInputKeyDown = (e) => { if (e.key === "Enter" && !loading) search(); };
   const categories = ["caterers", "photographers", "venues", "florists", "dj", "bartenders", "decorators"];
-
-  const inputStyle = (isDisabled) => ({
-    width: "100%",
-    background: isDisabled ? "#080810" : "#0F0F1A",
-    border: "1px solid #1A1A2E",
-    borderRadius: "8px",
-    padding: "8px 12px",
-    color: isDisabled ? "#5A5A7A" : "#E8E8F0",
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: "13px",
-    outline: "none",
-    boxSizing: "border-box",
-    transition: "all 0.2s",
+  const inputStyle = (disabled) => ({
+    width: "100%", background: disabled ? "#080810" : "#0F0F1A",
+    border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px",
+    color: disabled ? "#5A5A7A" : "#E8E8F0", fontFamily: "'DM Sans', sans-serif",
+    fontSize: "13px", outline: "none", boxSizing: "border-box", transition: "all 0.2s",
   });
 
   return (
@@ -237,59 +426,33 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
           ].map(({ key, label, placeholder }) => (
             <div key={key}>
               <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>{label}</div>
-              <input
-                value={searchParams[key]}
-                onChange={e => setSearchParams(p => ({ ...p, [key]: e.target.value }))}
-                onKeyDown={handleInputKeyDown}
-                placeholder={placeholder}
-                disabled={loading}
-                style={inputStyle(loading)}
-              />
+              <input value={searchParams[key]} onChange={e => setSearchParams(p => ({ ...p, [key]: e.target.value }))}
+                onKeyDown={handleInputKeyDown} placeholder={placeholder} disabled={loading} style={inputStyle(loading)} />
             </div>
           ))}
           <div>
             <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>CATEGORY</div>
-            <select
-              value={searchParams.category}
-              onChange={e => setSearchParams(p => ({ ...p, category: e.target.value }))}
-              onKeyDown={handleInputKeyDown}
-              disabled={loading}
-              style={inputStyle(loading)}
-            >
+            <select value={searchParams.category} onChange={e => setSearchParams(p => ({ ...p, category: e.target.value }))}
+              onKeyDown={handleInputKeyDown} disabled={loading} style={inputStyle(loading)}>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>
-
         <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            onClick={loading ? undefined : search}
-            disabled={loading}
-            style={{
-              flex: 1,
-              background: loading ? "#0A0A18" : "linear-gradient(135deg, #00D4FF, #0088AA)",
-              border: loading ? "1px solid #1A1A2E" : "none",
-              borderRadius: "10px", padding: "12px",
-              color: loading ? "#3A3A5A" : "white",
-              fontFamily: "'Space Mono', monospace", fontSize: "12px",
-              letterSpacing: "0.08em", cursor: loading ? "not-allowed" : "pointer",
-              transition: "all 0.2s",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-            }}
-          >
-            {loading && (
-              <span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
-            )}
+          <button onClick={loading ? undefined : search} disabled={loading} style={{
+            flex: 1, background: loading ? "#0A0A18" : "linear-gradient(135deg, #00D4FF, #0088AA)",
+            border: loading ? "1px solid #1A1A2E" : "none", borderRadius: "10px", padding: "12px",
+            color: loading ? "#3A3A5A" : "white", fontFamily: "'Space Mono', monospace", fontSize: "12px",
+            letterSpacing: "0.08em", cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+          }}>
+            {loading && <span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />}
             {loading ? "SEARCHING & FINDING EMAILS..." : "SEARCH VENDORS →"}
           </button>
-
           {loading && (
-            <button
-              onClick={cancel}
-              style={{ background: "transparent", border: "1px solid #FF3E9A44", borderRadius: "10px", padding: "12px 18px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.08em", cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}
+            <button onClick={cancel} style={{ background: "transparent", border: "1px solid #FF3E9A44", borderRadius: "10px", padding: "12px 18px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.08em", cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}
               onMouseEnter={e => { e.currentTarget.style.background = "#FF3E9A11"; e.currentTarget.style.borderColor = "#FF3E9A88"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#FF3E9A44"; }}
-            >
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#FF3E9A44"; }}>
               ✕ CANCEL
             </button>
           )}
@@ -306,9 +469,7 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
 
       {searched && vendors.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          {vendors.map(vendor => (
-            <VendorCard key={vendor.id} vendor={vendor} onDraftEmail={onDraftEmail} />
-          ))}
+          {vendors.map(vendor => <VendorCard key={vendor.id} vendor={vendor} onDraftEmail={onDraftEmail} />)}
         </div>
       )}
 
@@ -380,9 +541,7 @@ function SetupPanel({ event, onSave, onClose }) {
 function TypingIndicator() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "14px 18px" }}>
-      {[0, 1, 2].map(i => (
-        <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#FF6B35", animation: "bounce 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
-      ))}
+      {[0, 1, 2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#FF6B35", animation: "bounce 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />)}
     </div>
   );
 }
@@ -445,6 +604,10 @@ export default function SonaAgent() {
   const [vendorResults, setVendorResults] = useState([]);
   const [vendorSummary, setVendorSummary] = useState(null);
   const [vendorSearched, setVendorSearched] = useState(false);
+
+  // Gmail modal state
+  const [gmailModal, setGmailModal] = useState(null); // { vendor, draftContent }
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeWorkstream, setActiveWorkstream] = useState("marketing");
@@ -509,11 +672,56 @@ export default function SonaAgent() {
     }
   };
 
-  const handleDraftEmail = (vendor) => {
+  // When user clicks "Draft Email" on a vendor card:
+  // 1. Generate draft via Claude in the chat
+  // 2. Open Gmail modal with the draft pre-populated
+  const handleDraftEmail = async (vendor) => {
     setVendorView("chat");
     const emailLine = vendor.email ? `Their email is ${vendor.email}.` : `No email found — use their phone ${vendor.phone}.`;
-    const prompt = `Draft a professional outreach email to ${vendor.name} (located at ${vendor.address}). ${emailLine} I'm looking for catering for my event with ${event.guestCount || "50"} guests, budget under $${event.budget || "600"}. The event is ${event.name || "an AI networking night"} on ${event.date || "upcoming"}. Make it friendly, specific, and ask about their availability and pricing for this size event.`;
-    sendMessage(prompt, "vendors");
+    const prompt = `Draft a professional outreach email to ${vendor.name} (located at ${vendor.address}). ${emailLine} I'm looking for catering for my event with ${event.guestCount || "50"} guests, budget under $${event.budget || "600"}. The event is ${event.name || "an AI networking night"} on ${event.date || "upcoming"}. Make it friendly, specific, and ask about their availability and pricing. Format your response as:
+
+Subject: [subject line here]
+
+[email body here]`;
+
+    // Send to chat
+    const ws = "vendors";
+    const currentHistory = allHistory[ws];
+    const userMsg = { role: "user", content: prompt, workstream: ws };
+    const newHistory = [...currentHistory, { role: "user", content: prompt }];
+    setAllMessages(prev => ({ ...prev, [ws]: [...prev[ws], userMsg] }));
+    setAllHistory(prev => ({ ...prev, [ws]: newHistory }));
+    setLoading(true);
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: buildSystemPrompt(event) + "\n\nCurrent workstream: Vendors.",
+          messages: newHistory,
+        }),
+      });
+      const data = await response.json();
+      const reply = data.content?.[0]?.text || "";
+      const assistantMsg = { role: "assistant", content: reply, workstream: ws };
+      setAllMessages(prev => ({ ...prev, [ws]: [...prev[ws], assistantMsg] }));
+      setAllHistory(prev => ({ ...prev, [ws]: [...prev[ws], { role: "assistant", content: reply }] }));
+
+      // Open Gmail modal with the draft
+      setGmailModal({ vendor, draftContent: reply });
+    } catch {
+      setAllMessages(prev => ({ ...prev, [ws]: [...prev[ws], { role: "assistant", content: "Error generating draft.", workstream: ws }] }));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClear = () => {
@@ -570,6 +778,7 @@ export default function SonaAgent() {
       `}</style>
 
       {showSetup && <SetupPanel event={event} onSave={saveEvent} onClose={() => setShowSetup(false)} />}
+      {gmailModal && <GmailModal vendor={gmailModal.vendor} draftContent={gmailModal.draftContent} onClose={() => setGmailModal(null)} />}
 
       <div style={{ display: "flex", height: "100vh", background: "#07070F", fontFamily: "'DM Sans', sans-serif" }}>
         {/* Sidebar */}
@@ -610,9 +819,7 @@ export default function SonaAgent() {
               <div style={{ marginTop: "16px" }}>
                 <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.1em", marginBottom: "8px", paddingLeft: "4px" }}>QUICK PROMPTS</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {ws.templates.map((t, i) => (
-                    <button key={i} className="template-btn" onClick={() => sendMessage(t, ws.id)} disabled={loading}>{t}</button>
-                  ))}
+                  {ws.templates.map((t, i) => <button key={i} className="template-btn" onClick={() => sendMessage(t, ws.id)} disabled={loading}>{t}</button>)}
                 </div>
               </div>
             ) : null;
@@ -663,22 +870,16 @@ export default function SonaAgent() {
           {isVendors && vendorView === "search" ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
               <VendorSearchPanel
-                event={event}
-                onDraftEmail={handleDraftEmail}
-                vendors={vendorResults}
-                setVendors={setVendorResults}
-                summary={vendorSummary}
-                setSummary={setVendorSummary}
-                searched={vendorSearched}
-                setSearched={setVendorSearched}
+                event={event} onDraftEmail={handleDraftEmail}
+                vendors={vendorResults} setVendors={setVendorResults}
+                summary={vendorSummary} setSummary={setVendorSummary}
+                searched={vendorSearched} setSearched={setVendorSearched}
               />
             </div>
           ) : (
             <>
               <div style={{ flex: 1, overflowY: "auto", padding: "28px" }}>
-                {messages.map((msg, i) => (
-                  <div key={i} className="msg-animate"><Message msg={msg} workstreams={WORKSTREAMS} /></div>
-                ))}
+                {messages.map((msg, i) => <div key={i} className="msg-animate"><Message msg={msg} workstreams={WORKSTREAMS} /></div>)}
                 {loading && (
                   <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "24px" }}>
                     <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #FF6B35, #FF3E9A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>S</div>
@@ -689,15 +890,11 @@ export default function SonaAgent() {
               </div>
               <div style={{ padding: "16px 28px 24px", borderTop: "1px solid #0F0F1A" }}>
                 <div className="input-box" onClick={() => textareaRef.current?.focus()}>
-                  <textarea
-                    ref={textareaRef}
-                    rows={1}
-                    value={input}
+                  <textarea ref={textareaRef} rows={1} value={input}
                     onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
                     onKeyDown={handleKey}
                     placeholder={`Ask Sona about ${WORKSTREAMS.find(w => w.id === activeWorkstream)?.label.toLowerCase()}...`}
-                    style={{ maxHeight: "120px", alignSelf: "stretch" }}
-                  />
+                    style={{ maxHeight: "120px", alignSelf: "stretch" }} />
                   <button className="send-btn" onClick={() => input.trim() && !loading && sendMessage(input.trim())} disabled={!input.trim() || loading}>↑</button>
                 </div>
                 <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#2A2A4A", textAlign: "center", marginTop: "10px", letterSpacing: "0.05em" }}>
