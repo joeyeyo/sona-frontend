@@ -81,14 +81,11 @@ function GmailModal({ vendor, draftContent, onClose }) {
   const [error, setError] = useState("");
   const hasEmail = to.trim().length > 0;
 
-  // Parse draft content into subject + body
   useEffect(() => {
     if (!draftContent) return;
     const lines = draftContent.split("\n");
     let subjectLine = "";
     let bodyStart = 0;
-
-    // Look for Subject: line
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().startsWith("subject:")) {
         subjectLine = lines[i].replace(/^subject:\s*/i, "").trim();
@@ -96,12 +93,7 @@ function GmailModal({ vendor, draftContent, onClose }) {
         break;
       }
     }
-
-    if (!subjectLine) {
-      // Generate a default subject from vendor name
-      subjectLine = `Catering inquiry for our upcoming event`;
-    }
-
+    if (!subjectLine) subjectLine = `Catering inquiry for our upcoming event`;
     setSubject(subjectLine);
     setBody(lines.slice(bodyStart).join("\n").trim());
   }, [draftContent]);
@@ -128,7 +120,7 @@ function GmailModal({ vendor, draftContent, onClose }) {
       } else {
         setError(data.error || "Failed to send. Try again.");
       }
-    } catch (e) {
+    } catch {
       setError("Connection error. Check Railway is running.");
     } finally {
       setSending(false);
@@ -142,160 +134,67 @@ function GmailModal({ vendor, draftContent, onClose }) {
       zIndex: 200, backdropFilter: "blur(12px)",
     }}>
       <div style={{
-        background: "#0C0C1A",
-        border: "1px solid #1E1E35",
-        borderRadius: "20px",
-        width: "600px",
-        maxHeight: "90vh",
-        display: "flex",
-        flexDirection: "column",
+        background: "#0C0C1A", border: "1px solid #1E1E35", borderRadius: "20px",
+        width: "600px", maxHeight: "90vh", display: "flex", flexDirection: "column",
         boxShadow: "0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.1)",
       }}>
         {/* Header */}
-        <div style={{
-          padding: "20px 24px 16px",
-          borderBottom: "1px solid #1E1E35",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #1E1E35", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.12em", marginBottom: "4px" }}>
-              ✉ COMPOSE EMAIL
-            </div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "#E8E8F0" }}>
-              {vendor?.name || "Vendor"}
-            </div>
+            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.12em", marginBottom: "4px" }}>✉ COMPOSE EMAIL</div>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: "#E8E8F0" }}>{vendor?.name || "Vendor"}</div>
           </div>
-          <button onClick={onClose} style={{
-            background: "transparent", border: "1px solid #1E1E35",
-            borderRadius: "8px", width: "32px", height: "32px",
-            color: "#5A5A7A", cursor: "pointer", fontSize: "16px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all 0.15s",
-          }}
+          <button onClick={onClose} style={{ background: "transparent", border: "1px solid #1E1E35", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#FF3E9A44"; e.currentTarget.style.color = "#FF3E9A"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E1E35"; e.currentTarget.style.color = "#5A5A7A"; }}
-          >✕</button>
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E1E35"; e.currentTarget.style.color = "#5A5A7A"; }}>✕</button>
         </div>
 
         {/* Fields */}
         <div style={{ display: "flex", flexDirection: "column", padding: "0 24px", overflowY: "auto", flex: 1 }}>
-
-          {/* To field */}
+          {/* To */}
           <div style={{ borderBottom: "1px solid #1E1E35", padding: "14px 0", display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.08em", width: "60px", flexShrink: 0 }}>TO</div>
-            <input
-              value={to}
-              onChange={e => setTo(e.target.value)}
-              placeholder="vendor@email.com"
-              style={{
-                flex: 1, background: "transparent", border: "none", outline: "none",
-                color: hasEmail ? "#E8E8F0" : "#FF3E9A",
-                fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
-              }}
-            />
+            <input value={to} onChange={e => setTo(e.target.value)} placeholder="vendor@email.com"
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: hasEmail ? "#E8E8F0" : "#FF3E9A", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }} />
             {!hasEmail && (
-              <div style={{
-                fontSize: "10px", fontFamily: "'Space Mono', monospace",
-                color: "#FF3E9A", background: "#FF3E9A11",
-                border: "1px solid #FF3E9A33", borderRadius: "6px",
-                padding: "3px 8px", whiteSpace: "nowrap",
-              }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF3E9A", background: "#FF3E9A11", border: "1px solid #FF3E9A33", borderRadius: "6px", padding: "3px 8px", whiteSpace: "nowrap" }}>
                 NO EMAIL FOUND
               </div>
             )}
-            {hasEmail && (
-              <div style={{
-                fontSize: "10px", fontFamily: "'Space Mono', monospace",
-                color: "#A8FF3E", background: "#A8FF3E11",
-                border: "1px solid #A8FF3E33", borderRadius: "6px",
-                padding: "3px 8px",
-              }}>✓</div>
-            )}
+            {hasEmail && <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓</div>}
           </div>
 
-          {/* Subject field */}
+          {/* Subject */}
           <div style={{ borderBottom: "1px solid #1E1E35", padding: "14px 0", display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.08em", width: "60px", flexShrink: 0 }}>SUBJECT</div>
-            <input
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              placeholder="Email subject..."
-              style={{
-                flex: 1, background: "transparent", border: "none", outline: "none",
-                color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
-              }}
-            />
+            <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Email subject..."
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }} />
           </div>
 
           {/* Body */}
           <div style={{ padding: "16px 0", flex: 1 }}>
-            <textarea
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder="Write your email here..."
-              rows={12}
-              style={{
-                width: "100%", background: "transparent", border: "none", outline: "none",
-                color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px",
-                lineHeight: "1.7", resize: "vertical", minHeight: "240px",
-                boxSizing: "border-box",
-              }}
-            />
+            <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Write your email here..." rows={12}
+              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px", lineHeight: "1.7", resize: "vertical", minHeight: "240px", boxSizing: "border-box" }} />
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: "16px 24px",
-          borderTop: "1px solid #1E1E35",
-          display: "flex", alignItems: "center", gap: "12px",
-        }}>
-          {/* Send button */}
-          <button
-            onClick={handleSend}
-            disabled={!hasEmail || sending || sent}
-            style={{
-              background: sent
-                ? "linear-gradient(135deg, #A8FF3E, #4ADE80)"
-                : hasEmail
-                  ? "linear-gradient(135deg, #00D4FF, #0088AA)"
-                  : "#1A1A2E",
-              border: hasEmail ? "none" : "1px solid #2A2A4A",
-              borderRadius: "10px",
-              padding: "12px 28px",
-              color: sent ? "#07070F" : hasEmail ? "white" : "#3A3A5A",
-              fontFamily: "'Space Mono', monospace",
-              fontSize: "12px",
-              letterSpacing: "0.08em",
-              cursor: hasEmail && !sending && !sent ? "pointer" : "not-allowed",
-              transition: "all 0.2s",
-              display: "flex", alignItems: "center", gap: "8px",
-              opacity: sending ? 0.7 : 1,
-            }}
-          >
+        <div style={{ padding: "16px 24px", borderTop: "1px solid #1E1E35", display: "flex", alignItems: "center", gap: "12px" }}>
+          <button onClick={handleSend} disabled={!hasEmail || sending || sent} style={{
+            background: sent ? "linear-gradient(135deg, #A8FF3E, #4ADE80)" : hasEmail ? "linear-gradient(135deg, #00D4FF, #0088AA)" : "#1A1A2E",
+            border: hasEmail ? "none" : "1px solid #2A2A4A", borderRadius: "10px", padding: "12px 28px",
+            color: sent ? "#07070F" : hasEmail ? "white" : "#3A3A5A",
+            fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em",
+            cursor: hasEmail && !sending && !sent ? "pointer" : "not-allowed",
+            transition: "all 0.2s", display: "flex", alignItems: "center", gap: "8px", opacity: sending ? 0.7 : 1,
+          }}>
             {sent ? "✓ SENT" : sending ? (
-              <>
-                <span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
-                SENDING...
-              </>
+              <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", display: "inline-block", animation: "spin 0.8s linear infinite" }} />SENDING...</>
             ) : "SEND →"}
           </button>
-
-          {!hasEmail && (
-            <div style={{ fontSize: "12px", color: "#5A5A7A", fontFamily: "'DM Sans', sans-serif" }}>
-              Add an email address above to send
-            </div>
-          )}
-
-          {error && (
-            <div style={{ fontSize: "12px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace" }}>
-              {error}
-            </div>
-          )}
-
-          <div style={{ marginLeft: "auto", fontSize: "11px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>
-            SENDS FROM GMAIL
-          </div>
+          {!hasEmail && <div style={{ fontSize: "12px", color: "#5A5A7A", fontFamily: "'DM Sans', sans-serif" }}>Add an email address above to send</div>}
+          {error && <div style={{ fontSize: "12px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace" }}>{error}</div>}
+          <div style={{ marginLeft: "auto", fontSize: "11px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>SENDS FROM GMAIL</div>
         </div>
       </div>
     </div>
@@ -303,8 +202,10 @@ function GmailModal({ vendor, draftContent, onClose }) {
 }
 
 // ── Vendor Card ───────────────────────────────────────────────────────────────
-function VendorCard({ vendor, onDraftEmail }) {
+function VendorCard({ vendor, onDraftEmail, generatingFor }) {
   const stars = "★".repeat(Math.floor(vendor.rating)) + (vendor.rating % 1 >= 0.5 ? "½" : "");
+  const isGenerating = generatingFor === vendor.id;
+
   return (
     <div
       style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", overflow: "hidden", transition: "border-color 0.2s" }}
@@ -345,10 +246,23 @@ function VendorCard({ vendor, onDraftEmail }) {
         <div style={{ display: "flex", gap: "8px" }}>
           <button
             onClick={() => onDraftEmail(vendor)}
-            style={{ flex: 1, background: "linear-gradient(135deg, #00D4FF22, #00D4FF11)", border: "1px solid #00D4FF44", borderRadius: "8px", padding: "8px", color: "#00D4FF", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", cursor: "pointer", transition: "all 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF33, #00D4FF22)"}
-            onMouseLeave={e => e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF22, #00D4FF11)"}
-          >✉ DRAFT EMAIL</button>
+            disabled={isGenerating}
+            style={{
+              flex: 1,
+              background: isGenerating ? "#0A0A18" : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
+              border: "1px solid #00D4FF44", borderRadius: "8px", padding: "8px",
+              color: isGenerating ? "#3A3A5A" : "#00D4FF",
+              fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em",
+              cursor: isGenerating ? "not-allowed" : "pointer", transition: "all 0.15s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+            }}
+            onMouseEnter={e => { if (!isGenerating) e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF33, #00D4FF22)"; }}
+            onMouseLeave={e => { if (!isGenerating) e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF22, #00D4FF11)"; }}
+          >
+            {isGenerating ? (
+              <><span style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />DRAFTING...</>
+            ) : "✉ DRAFT EMAIL"}
+          </button>
           <a href={vendor.url} target="_blank" rel="noopener noreferrer"
             style={{ padding: "8px 12px", background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", textDecoration: "none", transition: "all 0.15s", display: "flex", alignItems: "center" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#2A2A4A"; e.currentTarget.style.color = "#E8E8F0"; }}
@@ -361,7 +275,7 @@ function VendorCard({ vendor, onDraftEmail }) {
 }
 
 // ── Vendor Search Panel ───────────────────────────────────────────────────────
-function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, setSummary, searched, setSearched }) {
+function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, setSummary, searched, setSearched, generatingFor }) {
   const [searchParams, setSearchParams] = useState({
     keywords: "asian food", category: "caterers",
     budget: event.budget || "600", guest_count: event.guestCount || "50",
@@ -469,7 +383,9 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
 
       {searched && vendors.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          {vendors.map(vendor => <VendorCard key={vendor.id} vendor={vendor} onDraftEmail={onDraftEmail} />)}
+          {vendors.map(vendor => (
+            <VendorCard key={vendor.id} vendor={vendor} onDraftEmail={onDraftEmail} generatingFor={generatingFor} />
+          ))}
         </div>
       )}
 
@@ -604,8 +520,7 @@ export default function SonaAgent() {
   const [vendorResults, setVendorResults] = useState([]);
   const [vendorSummary, setVendorSummary] = useState(null);
   const [vendorSearched, setVendorSearched] = useState(false);
-
-  // Gmail modal state
+  const [generatingFor, setGeneratingFor] = useState(null); // vendor id being drafted
   const [gmailModal, setGmailModal] = useState(null); // { vendor, draftContent }
 
   const [input, setInput] = useState("");
@@ -642,7 +557,6 @@ export default function SonaAgent() {
     setAllHistory(prev => ({ ...prev, [ws]: newHistory }));
     setInput("");
     setLoading(true);
-    if (ws === "vendors") setVendorView("chat");
     const wsLabel = WORKSTREAMS.find(w => w.id === ws)?.label || "";
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -672,26 +586,16 @@ export default function SonaAgent() {
     }
   };
 
-  // When user clicks "Draft Email" on a vendor card:
-  // 1. Generate draft via Claude in the chat
-  // 2. Open Gmail modal with the draft pre-populated
+  // Draft email — stays on vendor search page, opens modal when done
   const handleDraftEmail = async (vendor) => {
-    setVendorView("chat");
+    setGeneratingFor(vendor.id);
+
     const emailLine = vendor.email ? `Their email is ${vendor.email}.` : `No email found — use their phone ${vendor.phone}.`;
     const prompt = `Draft a professional outreach email to ${vendor.name} (located at ${vendor.address}). ${emailLine} I'm looking for catering for my event with ${event.guestCount || "50"} guests, budget under $${event.budget || "600"}. The event is ${event.name || "an AI networking night"} on ${event.date || "upcoming"}. Make it friendly, specific, and ask about their availability and pricing. Format your response as:
 
 Subject: [subject line here]
 
 [email body here]`;
-
-    // Send to chat
-    const ws = "vendors";
-    const currentHistory = allHistory[ws];
-    const userMsg = { role: "user", content: prompt, workstream: ws };
-    const newHistory = [...currentHistory, { role: "user", content: prompt }];
-    setAllMessages(prev => ({ ...prev, [ws]: [...prev[ws], userMsg] }));
-    setAllHistory(prev => ({ ...prev, [ws]: newHistory }));
-    setLoading(true);
 
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -706,21 +610,17 @@ Subject: [subject line here]
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
           system: buildSystemPrompt(event) + "\n\nCurrent workstream: Vendors.",
-          messages: newHistory,
+          messages: [{ role: "user", content: prompt }],
         }),
       });
       const data = await response.json();
-      const reply = data.content?.[0]?.text || "";
-      const assistantMsg = { role: "assistant", content: reply, workstream: ws };
-      setAllMessages(prev => ({ ...prev, [ws]: [...prev[ws], assistantMsg] }));
-      setAllHistory(prev => ({ ...prev, [ws]: [...prev[ws], { role: "assistant", content: reply }] }));
-
-      // Open Gmail modal with the draft
-      setGmailModal({ vendor, draftContent: reply });
-    } catch {
-      setAllMessages(prev => ({ ...prev, [ws]: [...prev[ws], { role: "assistant", content: "Error generating draft.", workstream: ws }] }));
+      const draft = data.content?.[0]?.text || "";
+      // Open modal — stay on vendor search page
+      setGmailModal({ vendor, draftContent: draft });
+    } catch (e) {
+      console.error("Draft error:", e);
     } finally {
-      setLoading(false);
+      setGeneratingFor(null);
     }
   };
 
@@ -870,10 +770,15 @@ Subject: [subject line here]
           {isVendors && vendorView === "search" ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
               <VendorSearchPanel
-                event={event} onDraftEmail={handleDraftEmail}
-                vendors={vendorResults} setVendors={setVendorResults}
-                summary={vendorSummary} setSummary={setVendorSummary}
-                searched={vendorSearched} setSearched={setVendorSearched}
+                event={event}
+                onDraftEmail={handleDraftEmail}
+                vendors={vendorResults}
+                setVendors={setVendorResults}
+                summary={vendorSummary}
+                setSummary={setVendorSummary}
+                searched={vendorSearched}
+                setSearched={setVendorSearched}
+                generatingFor={generatingFor}
               />
             </div>
           ) : (
