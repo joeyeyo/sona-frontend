@@ -169,11 +169,10 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
   const abortRef = useRef(null);
 
   const search = async () => {
-    // Create a new AbortController for this search
+    if (loading) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true);
-
     try {
       const response = await fetch(`${RAILWAY_URL}/search-vendors`, {
         method: "POST",
@@ -192,30 +191,41 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
       setSummary({ total: data.total, emails_found: data.emails_found });
       setSearched(true);
     } catch (err) {
-      if (err.name === "AbortError") {
-        // Search was cancelled — do nothing, keep any existing results
-      } else {
-        console.error(err);
-      }
+      if (err.name !== "AbortError") console.error(err);
     } finally {
       setLoading(false);
       abortRef.current = null;
     }
   };
 
-  const cancel = () => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
+  const cancel = () => { if (abortRef.current) abortRef.current.abort(); };
+
+  // Trigger search on Enter for any text input field
+  const handleInputKeyDown = (e) => {
+    if (e.key === "Enter" && !loading) search();
   };
 
   const categories = ["caterers", "photographers", "venues", "florists", "dj", "bartenders", "decorators"];
+
+  const inputStyle = (isDisabled) => ({
+    width: "100%",
+    background: isDisabled ? "#080810" : "#0F0F1A",
+    border: "1px solid #1A1A2E",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    color: isDisabled ? "#5A5A7A" : "#E8E8F0",
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: "13px",
+    outline: "none",
+    boxSizing: "border-box",
+    transition: "all 0.2s",
+  });
 
   return (
     <div style={{ padding: "28px", overflowY: "auto", height: "100%" }}>
       <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
         <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.1em", marginBottom: "16px" }}>
-          🔍 VENDOR SEARCH
+          🔍 VENDOR SEARCH · PRESS ENTER TO SEARCH
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
           {[
@@ -230,9 +240,10 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
               <input
                 value={searchParams[key]}
                 onChange={e => setSearchParams(p => ({ ...p, [key]: e.target.value }))}
+                onKeyDown={handleInputKeyDown}
                 placeholder={placeholder}
                 disabled={loading}
-                style={{ width: "100%", background: loading ? "#080810" : "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: loading ? "#5A5A7A" : "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box", transition: "all 0.2s" }}
+                style={inputStyle(loading)}
               />
             </div>
           ))}
@@ -241,15 +252,15 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
             <select
               value={searchParams.category}
               onChange={e => setSearchParams(p => ({ ...p, category: e.target.value }))}
+              onKeyDown={handleInputKeyDown}
               disabled={loading}
-              style={{ width: "100%", background: loading ? "#080810" : "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: loading ? "#5A5A7A" : "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+              style={inputStyle(loading)}
             >
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Search / Cancel button row */}
         <div style={{ display: "flex", gap: "10px" }}>
           <button
             onClick={loading ? undefined : search}
@@ -267,32 +278,15 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
             }}
           >
             {loading && (
-              <span style={{
-                width: "12px", height: "12px", borderRadius: "50%",
-                border: "2px solid #3A3A5A", borderTopColor: "#00D4FF",
-                display: "inline-block", animation: "spin 0.8s linear infinite", flexShrink: 0,
-              }} />
+              <span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
             )}
             {loading ? "SEARCHING & FINDING EMAILS..." : "SEARCH VENDORS →"}
           </button>
 
-          {/* Cancel button — only visible while loading */}
           {loading && (
             <button
               onClick={cancel}
-              style={{
-                background: "transparent",
-                border: "1px solid #FF3E9A44",
-                borderRadius: "10px",
-                padding: "12px 18px",
-                color: "#FF3E9A",
-                fontFamily: "'Space Mono', monospace",
-                fontSize: "11px",
-                letterSpacing: "0.08em",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                whiteSpace: "nowrap",
-              }}
+              style={{ background: "transparent", border: "1px solid #FF3E9A44", borderRadius: "10px", padding: "12px 18px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.08em", cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}
               onMouseEnter={e => { e.currentTarget.style.background = "#FF3E9A11"; e.currentTarget.style.borderColor = "#FF3E9A88"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#FF3E9A44"; }}
             >
@@ -322,7 +316,7 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
         <div style={{ textAlign: "center", padding: "60px 20px", color: "#3A3A5A" }}>
           <div style={{ fontSize: "32px", marginBottom: "12px" }}>🤝</div>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.1em" }}>SEARCH FOR VENDORS ABOVE</div>
-          <div style={{ fontSize: "13px", color: "#2A2A4A", marginTop: "8px" }}>Find caterers, photographers, venues and more</div>
+          <div style={{ fontSize: "13px", color: "#2A2A4A", marginTop: "8px" }}>Type keywords and press Enter, or click Search</div>
         </div>
       )}
     </div>
@@ -451,7 +445,6 @@ export default function SonaAgent() {
   const [vendorResults, setVendorResults] = useState([]);
   const [vendorSummary, setVendorSummary] = useState(null);
   const [vendorSearched, setVendorSearched] = useState(false);
-
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeWorkstream, setActiveWorkstream] = useState("marketing");
