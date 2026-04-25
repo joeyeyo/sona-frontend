@@ -83,14 +83,13 @@ Generate ready-to-use content. Be specific, use actual event details. Write like
 When generating Canva image briefs: Format, Background, Text overlay, Font mood, Color palette, Mood/vibe.`;
 }
 
-// ── Vendor Search Panel ────────────────────────────────────────────────────────
+// ── Vendor Card ───────────────────────────────────────────────────────────────
 function VendorCard({ vendor, onDraftEmail }) {
   const stars = "★".repeat(Math.floor(vendor.rating)) + (vendor.rating % 1 >= 0.5 ? "½" : "");
+
   return (
-    <div style={{
-      background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px",
-      overflow: "hidden", transition: "border-color 0.2s",
-    }}
+    <div
+      style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", overflow: "hidden", transition: "border-color 0.2s" }}
       onMouseEnter={e => e.currentTarget.style.borderColor = "#00D4FF33"}
       onMouseLeave={e => e.currentTarget.style.borderColor = "#1A1A2E"}
     >
@@ -107,32 +106,54 @@ function VendorCard({ vendor, onDraftEmail }) {
       )}
       <div style={{ padding: "14px" }}>
         <div style={{ fontSize: "14px", fontWeight: 600, color: "#E8E8F0", marginBottom: "4px" }}>{vendor.name}</div>
+
+        {/* Rating row with score */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
           <span style={{ color: "#FFB800", fontSize: "12px" }}>{stars}</span>
           <span style={{ fontSize: "12px", color: "#00D4FF", fontWeight: 600 }}>{vendor.rating}</span>
           <span style={{ fontSize: "11px", color: "#5A5A7A" }}>({vendor.review_count} reviews)</span>
           {vendor.price && vendor.price !== "N/A" && (
-            <span style={{ fontSize: "11px", color: "#A8FF3E", marginLeft: "auto" }}>{vendor.price}</span>
+            <span style={{ fontSize: "11px", color: "#A8FF3E" }}>{vendor.price}</span>
+          )}
+          {vendor.score && (
+            <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", marginLeft: "auto" }}>
+              ↑{vendor.score}
+            </span>
           )}
         </div>
+
+        {/* Email (green if found) */}
+        {vendor.email && (
+          <div style={{ fontSize: "11px", color: "#A8FF3E", marginBottom: "6px" }}>
+            ✉ {vendor.email}
+          </div>
+        )}
+
+        {/* Website if no email */}
+        {vendor.website && !vendor.email && (
+          <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "6px" }}>
+            🌐 <a href={vendor.website} target="_blank" rel="noopener noreferrer" style={{ color: "#5A5A7A" }}>
+              {vendor.website.replace("https://", "").replace("http://", "").split("/")[0]}
+            </a>
+          </div>
+        )}
+
+        {/* AI reason */}
         {vendor.ai_reason && (
           <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.5, marginBottom: "10px", fontStyle: "italic" }}>
             "{vendor.ai_reason}"
           </div>
         )}
+
         <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "4px" }}>📍 {vendor.address}</div>
         {vendor.phone && vendor.phone !== "N/A" && (
           <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "10px" }}>📞 {vendor.phone}</div>
         )}
+
         <div style={{ display: "flex", gap: "8px" }}>
           <button
             onClick={() => onDraftEmail(vendor)}
-            style={{
-              flex: 1, background: "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
-              border: "1px solid #00D4FF44", borderRadius: "8px", padding: "8px",
-              color: "#00D4FF", fontFamily: "'Space Mono', monospace", fontSize: "10px",
-              letterSpacing: "0.05em", cursor: "pointer", transition: "all 0.15s",
-            }}
+            style={{ flex: 1, background: "linear-gradient(135deg, #00D4FF22, #00D4FF11)", border: "1px solid #00D4FF44", borderRadius: "8px", padding: "8px", color: "#00D4FF", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", cursor: "pointer", transition: "all 0.15s" }}
             onMouseEnter={e => e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF33, #00D4FF22)"}
             onMouseLeave={e => e.currentTarget.style.background = "linear-gradient(135deg, #00D4FF22, #00D4FF11)"}
           >
@@ -140,13 +161,7 @@ function VendorCard({ vendor, onDraftEmail }) {
           </button>
           <a
             href={vendor.url} target="_blank" rel="noopener noreferrer"
-            style={{
-              padding: "8px 12px", background: "transparent",
-              border: "1px solid #1A1A2E", borderRadius: "8px",
-              color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px",
-              letterSpacing: "0.05em", textDecoration: "none", transition: "all 0.15s",
-              display: "flex", alignItems: "center",
-            }}
+            style={{ padding: "8px 12px", background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", textDecoration: "none", transition: "all 0.15s", display: "flex", alignItems: "center" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#2A2A4A"; e.currentTarget.style.color = "#E8E8F0"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#1A1A2E"; e.currentTarget.style.color = "#5A5A7A"; }}
           >
@@ -158,6 +173,7 @@ function VendorCard({ vendor, onDraftEmail }) {
   );
 }
 
+// ── Vendor Search Panel ───────────────────────────────────────────────────────
 function VendorSearchPanel({ event, onDraftEmail }) {
   const [searchParams, setSearchParams] = useState({
     keywords: "asian food",
@@ -170,6 +186,7 @@ function VendorSearchPanel({ event, onDraftEmail }) {
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [summary, setSummary] = useState(null);
 
   const search = async () => {
     setLoading(true);
@@ -182,10 +199,12 @@ function VendorSearchPanel({ event, onDraftEmail }) {
           budget: parseFloat(searchParams.budget),
           guest_count: parseInt(searchParams.guest_count),
           min_rating: parseFloat(searchParams.min_rating),
+          scrape_emails: true,
         }),
       });
       const data = await response.json();
       setVendors(data.vendors || []);
+      setSummary({ total: data.total, emails_found: data.emails_found });
       setSearched(true);
     } catch (err) {
       console.error(err);
@@ -204,15 +223,23 @@ function VendorSearchPanel({ event, onDraftEmail }) {
           🔍 VENDOR SEARCH
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
-          <div>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>KEYWORDS</div>
-            <input
-              value={searchParams.keywords}
-              onChange={e => setSearchParams(p => ({ ...p, keywords: e.target.value }))}
-              placeholder="asian food, sushi, korean..."
-              style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
-            />
-          </div>
+          {[
+            { key: "keywords", label: "KEYWORDS", placeholder: "asian food, sushi..." },
+            { key: "budget", label: "MAX BUDGET ($)", placeholder: "600" },
+            { key: "guest_count", label: "GUEST COUNT", placeholder: "50" },
+            { key: "min_rating", label: "MIN RATING", placeholder: "4.25" },
+            { key: "location", label: "LOCATION", placeholder: "Los Angeles, CA" },
+          ].map(({ key, label, placeholder }) => (
+            <div key={key}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>{label}</div>
+              <input
+                value={searchParams[key]}
+                onChange={e => setSearchParams(p => ({ ...p, [key]: e.target.value }))}
+                placeholder={placeholder}
+                style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+          ))}
           <div>
             <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>CATEGORY</div>
             <select
@@ -223,80 +250,39 @@ function VendorSearchPanel({ event, onDraftEmail }) {
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>MAX BUDGET ($)</div>
-            <input
-              value={searchParams.budget}
-              onChange={e => setSearchParams(p => ({ ...p, budget: e.target.value }))}
-              placeholder="600"
-              style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
-            />
-          </div>
-          <div>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>GUEST COUNT</div>
-            <input
-              value={searchParams.guest_count}
-              onChange={e => setSearchParams(p => ({ ...p, guest_count: e.target.value }))}
-              placeholder="50"
-              style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
-            />
-          </div>
-          <div>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>MIN RATING</div>
-            <input
-              value={searchParams.min_rating}
-              onChange={e => setSearchParams(p => ({ ...p, min_rating: e.target.value }))}
-              placeholder="4.25"
-              style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
-            />
-          </div>
-          <div>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>LOCATION</div>
-            <input
-              value={searchParams.location}
-              onChange={e => setSearchParams(p => ({ ...p, location: e.target.value }))}
-              placeholder="Los Angeles, CA"
-              style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
-            />
-          </div>
         </div>
         <button
           onClick={search}
           disabled={loading}
-          style={{
-            width: "100%", background: loading ? "#1A1A2E" : "linear-gradient(135deg, #00D4FF, #0088AA)",
-            border: "none", borderRadius: "10px", padding: "12px",
-            color: "white", fontFamily: "'Space Mono', monospace", fontSize: "12px",
-            letterSpacing: "0.08em", cursor: loading ? "not-allowed" : "pointer",
-          }}
+          style={{ width: "100%", background: loading ? "#1A1A2E" : "linear-gradient(135deg, #00D4FF, #0088AA)", border: "none", borderRadius: "10px", padding: "12px", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em", cursor: loading ? "not-allowed" : "pointer" }}
         >
-          {loading ? "SEARCHING YELP..." : "SEARCH VENDORS →"}
+          {loading ? "SEARCHING & FINDING EMAILS..." : "SEARCH VENDORS →"}
         </button>
       </div>
 
-      {/* Results */}
-      {searched && (
-        <>
-          <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.1em", marginBottom: "16px" }}>
-            {vendors.length} VENDORS FOUND
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            {vendors.map(vendor => (
-              <VendorCard key={vendor.id} vendor={vendor} onDraftEmail={onDraftEmail} />
-            ))}
-          </div>
-        </>
+      {/* Results summary */}
+      {searched && summary && (
+        <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", letterSpacing: "0.1em", marginBottom: "16px", display: "flex", gap: "16px" }}>
+          <span style={{ color: "#5A5A7A" }}>{summary.total} VENDORS FOUND</span>
+          <span style={{ color: "#A8FF3E" }}>{summary.emails_found} EMAILS FOUND</span>
+          <span style={{ color: "#FF6B35" }}>RANKED BY SCORE ↑</span>
+        </div>
+      )}
+
+      {/* Results grid */}
+      {searched && vendors.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          {vendors.map(vendor => (
+            <VendorCard key={vendor.id} vendor={vendor} onDraftEmail={onDraftEmail} />
+          ))}
+        </div>
       )}
 
       {!searched && (
         <div style={{ textAlign: "center", padding: "60px 20px", color: "#3A3A5A" }}>
           <div style={{ fontSize: "32px", marginBottom: "12px" }}>🤝</div>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.1em" }}>
-            SEARCH FOR VENDORS ABOVE
-          </div>
-          <div style={{ fontSize: "13px", color: "#2A2A4A", marginTop: "8px" }}>
-            Find caterers, photographers, venues and more
-          </div>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.1em" }}>SEARCH FOR VENDORS ABOVE</div>
+          <div style={{ fontSize: "13px", color: "#2A2A4A", marginTop: "8px" }}>Find caterers, photographers, venues and more</div>
         </div>
       )}
     </div>
@@ -307,7 +293,6 @@ function VendorSearchPanel({ event, onDraftEmail }) {
 function SetupPanel({ event, onSave, onClose }) {
   const [form, setForm] = useState(event);
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
-
   const fields = [
     { key: "name", label: "Event Name", placeholder: "Sona AI Night" },
     { key: "date", label: "Date", placeholder: "May 15, 2026" },
@@ -322,7 +307,6 @@ function SetupPanel({ event, onSave, onClose }) {
     { key: "hostInstagram", label: "Your Instagram Handle", placeholder: "joeyeyo" },
     { key: "instagramFollowers", label: "Instagram Followers", placeholder: "900" },
   ];
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(8px)" }}>
       <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "20px", width: "560px", maxHeight: "85vh", overflowY: "auto", padding: "32px" }}>
@@ -373,7 +357,6 @@ function Message({ msg, workstreams }) {
   const ws = workstreams.find(w => w.id === msg.workstream);
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard.writeText(msg.content); setCopied(true); setTimeout(() => setCopied(false), 2000); };
-
   return (
     <div style={{ display: "flex", flexDirection: msg.role === "user" ? "row-reverse" : "row", gap: "12px", alignItems: "flex-start", marginBottom: "24px" }}>
       {msg.role === "assistant" && (
@@ -427,7 +410,7 @@ export default function SonaAgent() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeWorkstream, setActiveWorkstream] = useState("marketing");
-  const [vendorView, setVendorView] = useState("search"); // "search" | "chat"
+  const [vendorView, setVendorView] = useState("search");
   const bottomRef = useRef(null);
 
   const messages = allMessages[activeWorkstream];
@@ -453,15 +436,11 @@ export default function SonaAgent() {
     const currentHistory = allHistory[ws];
     const userMsg = { role: "user", content: text, workstream: ws };
     const newHistory = [...currentHistory, { role: "user", content: text }];
-
     setAllMessages(prev => ({ ...prev, [ws]: [...prev[ws], userMsg] }));
     setAllHistory(prev => ({ ...prev, [ws]: newHistory }));
     setInput("");
     setLoading(true);
-
-    // If in vendors workstream and vendor view is search, switch to chat
     if (ws === "vendors") setVendorView("chat");
-
     const wsLabel = WORKSTREAMS.find(w => w.id === ws)?.label || "";
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -493,7 +472,8 @@ export default function SonaAgent() {
 
   const handleDraftEmail = (vendor) => {
     setVendorView("chat");
-    const prompt = `Draft a professional outreach email to ${vendor.name} (${vendor.phone !== "N/A" ? vendor.phone : "no phone listed"}, located at ${vendor.address}). I'm looking for catering for my event with ${event.guestCount || "50"} guests, budget under $${event.budget || "600"}. The event is ${event.name || "an AI networking night"} on ${event.date || "upcoming"}. Make it friendly, specific, and ask about their availability and pricing for this size event.`;
+    const emailLine = vendor.email ? `Their email is ${vendor.email}.` : `No email found — use their phone ${vendor.phone}.`;
+    const prompt = `Draft a professional outreach email to ${vendor.name} (located at ${vendor.address}). ${emailLine} I'm looking for catering for my event with ${event.guestCount || "50"} guests, budget under $${event.budget || "600"}. The event is ${event.name || "an AI networking night"} on ${event.date || "upcoming"}. Make it friendly, specific, and ask about their availability and pricing for this size event.`;
     sendMessage(prompt, "vendors");
   };
 
@@ -503,6 +483,7 @@ export default function SonaAgent() {
 
   const eventConfigured = event.name || event.date || event.venue;
   const isVendors = activeWorkstream === "vendors";
+  const textareaRef = useRef(null);
 
   return (
     <>
@@ -526,7 +507,7 @@ export default function SonaAgent() {
         .send-btn:hover { opacity: 0.85; }
         .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .msg-animate { animation: fadeIn 0.3s ease forwards; }
-        .view-tab { background: transparent; border: none; padding: "8px 16px"; cursor: pointer; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.08em; transition: all 0.15s; }
+        .input-box { background: #0F0F1A; border: 1px solid #1A1A2E; border-radius: 14px; padding: 14px 14px 14px 18px; display: flex; align-items: flex-end; gap: 12px; cursor: text; }
         textarea, input, select { background: transparent; border: none; outline: none; color: #E8E8F0; font-family: 'DM Sans', sans-serif; font-size: 14px; resize: none; width: 100%; line-height: 1.5; }
         input::placeholder, textarea::placeholder { color: #3A3A5A; }
         select option { background: #0F0F1A; }
@@ -651,12 +632,16 @@ export default function SonaAgent() {
                 <div ref={bottomRef} />
               </div>
               <div style={{ padding: "16px 28px 24px", borderTop: "1px solid #0F0F1A" }}>
-                <div onClick={() => document.querySelector('textarea').focus()} style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "14px", padding: "14px 14px 14px 18px", display: "flex", alignItems: "flex-end", gap: "12px", cursor: "text" }}>
-                  <textarea rows={1} value={input} style={{ alignSelf: "stretch" }}
+                <div className="input-box" onClick={() => textareaRef.current?.focus()}>
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    value={input}
                     onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
                     onKeyDown={handleKey}
                     placeholder={`Ask Sona about ${WORKSTREAMS.find(w => w.id === activeWorkstream)?.label.toLowerCase()}...`}
-                    style={{ maxHeight: "120px" }} />
+                    style={{ maxHeight: "120px", alignSelf: "stretch" }}
+                  />
                   <button className="send-btn" onClick={() => input.trim() && !loading && sendMessage(input.trim())} disabled={!input.trim() || loading}>↑</button>
                 </div>
                 <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#2A2A4A", textAlign: "center", marginTop: "10px", letterSpacing: "0.05em" }}>
