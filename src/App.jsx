@@ -23,15 +23,7 @@ const WORKSTREAMS = [
       "Compare vendor quotes and recommend one",
     ],
   },
-  {
-    id: "guests", label: "Guests", icon: "👥", color: "#FF6B35",
-    templates: [
-      "Write personalized invitation messages",
-      "Draft a WhatsApp blast for my network",
-      "Write an RSVP reminder message",
-      "Create a waitlist response message",
-    ],
-  },
+  { id: "guests", label: "Guests", icon: "👥", color: "#FF6B35" },
   {
     id: "logistics", label: "Logistics", icon: "📋", color: "#FF3E9A",
     templates: [
@@ -94,7 +86,6 @@ function DashboardTab({ event, sentVendorIds }) {
   const [eventType, setEventType] = useState("networking");
   const [cats, setCats] = useState(BUDGET_CATS.map(c => ({ ...c })));
 
-  // Sync with event changes
   useEffect(() => {
     if (event.budget) setBudget(parseInt(event.budget) || 3000);
     if (event.guestCount) setGuests(parseInt(event.guestCount) || 50);
@@ -106,7 +97,6 @@ function DashboardTab({ event, sentVendorIds }) {
   const remaining = budget - allocated;
   const isOver = remaining < 0;
 
-  // Countdown
   const daysUntil = (() => {
     if (!event.date) return null;
     const parts = event.date.match(/(\w+)\s+(\d+),?\s+(\d{4})/);
@@ -116,7 +106,6 @@ function DashboardTab({ event, sentVendorIds }) {
     return diff;
   })();
 
-  // Progress items
   const progress = [
     { label: "Event configured", done: !!(event.name && event.date && event.venue) },
     { label: "Vendors searched", done: false },
@@ -135,26 +124,15 @@ function DashboardTab({ event, sentVendorIds }) {
     return ["success", "Market rate"];
   }
 
-  function toggleCat(id) {
-    setCats(prev => prev.map(c => c.id === id ? { ...c, on: !c.on } : c));
-  }
-
-  function setPct(id, pct) {
-    setCats(prev => prev.map(c => c.id === id ? { ...c, pct } : c));
-  }
-
+  function toggleCat(id) { setCats(prev => prev.map(c => c.id === id ? { ...c, on: !c.on } : c)); }
+  function setPct(id, pct) { setCats(prev => prev.map(c => c.id === id ? { ...c, pct } : c)); }
   function applyPreset(type) {
     setEventType(type);
     const presets = EVENT_TYPE_PRESETS[type];
     setCats(prev => prev.map((c, i) => ({ ...c, pct: presets[i], on: true })));
   }
 
-  const inputStyle = {
-    background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px",
-    padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif",
-    fontSize: "13px", outline: "none",
-  };
-
+  const inputStyle = { background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "8px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none" };
   const badgeColors = {
     success: { bg: "#A8FF3E18", border: "#A8FF3E44", text: "#A8FF3E" },
     warning: { bg: "#FFB80018", border: "#FFB80044", text: "#FFB800" },
@@ -163,34 +141,12 @@ function DashboardTab({ event, sentVendorIds }) {
 
   return (
     <div style={{ padding: "28px", overflowY: "auto", height: "100%" }}>
-
-      {/* Top stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
         {[
-          {
-            label: "Days Until Event",
-            value: daysUntil !== null ? daysUntil : "—",
-            sub: daysUntil !== null ? (daysUntil <= 7 ? "This week!" : daysUntil <= 30 ? "Coming up soon" : "Plenty of time") : "Set event date",
-            color: daysUntil !== null && daysUntil <= 14 ? "#FF3E9A" : "#A8FF3E",
-          },
-          {
-            label: "Total Budget",
-            value: `$${budget.toLocaleString()}`,
-            sub: `$${Math.round(budget / (parseInt(event.guestCount) || 50))}/guest`,
-            color: "#00D4FF",
-          },
-          {
-            label: "Allocated",
-            value: `$${allocated.toLocaleString()}`,
-            sub: isOver ? "Over budget!" : `$${remaining.toLocaleString()} remaining`,
-            color: isOver ? "#FF3E9A" : "#A8FF3E",
-          },
-          {
-            label: "Planning Progress",
-            value: `${progressPct}%`,
-            sub: `${doneCount} of ${progress.length} tasks done`,
-            color: progressPct === 100 ? "#A8FF3E" : "#FF6B35",
-          },
+          { label: "Days Until Event", value: daysUntil !== null ? daysUntil : "—", sub: daysUntil !== null ? (daysUntil <= 7 ? "This week!" : daysUntil <= 30 ? "Coming up soon" : "Plenty of time") : "Set event date", color: daysUntil !== null && daysUntil <= 14 ? "#FF3E9A" : "#A8FF3E" },
+          { label: "Total Budget", value: `$${budget.toLocaleString()}`, sub: `$${Math.round(budget / (parseInt(event.guestCount) || 50))}/guest`, color: "#00D4FF" },
+          { label: "Allocated", value: `$${allocated.toLocaleString()}`, sub: isOver ? "Over budget!" : `$${remaining.toLocaleString()} remaining`, color: isOver ? "#FF3E9A" : "#A8FF3E" },
+          { label: "Planning Progress", value: `${progressPct}%`, sub: `${doneCount} of ${progress.length} tasks done`, color: progressPct === 100 ? "#A8FF3E" : "#FF6B35" },
         ].map((stat, i) => (
           <div key={i} style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "16px" }}>
             <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.1em", marginBottom: "8px" }}>{stat.label.toUpperCase()}</div>
@@ -199,31 +155,21 @@ function DashboardTab({ event, sentVendorIds }) {
           </div>
         ))}
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "20px", alignItems: "start" }}>
-
-        {/* Budget planner */}
         <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", padding: "20px" }}>
-          <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", letterSpacing: "0.1em", marginBottom: "16px" }}>
-            💰 BUDGET PLANNER
-          </div>
-
-          {/* Controls */}
+          <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", letterSpacing: "0.1em", marginBottom: "16px" }}>💰 BUDGET PLANNER</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "20px" }}>
             <div>
               <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>TOTAL BUDGET ($)</div>
-              <input type="number" value={budget} onChange={e => setBudget(parseInt(e.target.value) || 0)}
-                style={{ ...inputStyle, width: "100%" }} />
+              <input type="number" value={budget} onChange={e => setBudget(parseInt(e.target.value) || 0)} style={{ ...inputStyle, width: "100%" }} />
             </div>
             <div>
               <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>GUEST COUNT</div>
-              <input type="number" value={guests} onChange={e => setGuests(parseInt(e.target.value) || 1)}
-                style={{ ...inputStyle, width: "100%" }} />
+              <input type="number" value={guests} onChange={e => setGuests(parseInt(e.target.value) || 1)} style={{ ...inputStyle, width: "100%" }} />
             </div>
             <div>
               <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>EVENT TYPE</div>
-              <select value={eventType} onChange={e => applyPreset(e.target.value)}
-                style={{ ...inputStyle, width: "100%" }}>
+              <select value={eventType} onChange={e => applyPreset(e.target.value)} style={{ ...inputStyle, width: "100%" }}>
                 <option value="networking">Networking</option>
                 <option value="party">Party</option>
                 <option value="dinner">Dinner</option>
@@ -231,24 +177,16 @@ function DashboardTab({ event, sentVendorIds }) {
               </select>
             </div>
           </div>
-
-          {/* Category sliders */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {cats.map(cat => {
               const dollarAmt = Math.round(budget * cat.pct / 100);
               const perGuest = Math.round(dollarAmt / guests);
               const [badgeType, badgeText] = getBadge(cat, dollarAmt);
               const bc = badgeColors[badgeType];
-              const hint = cat.on ? (
-                dollarAmt / (cat.unit === "/guest" ? guests : 1) < cat.market.low ? cat.hints.low :
-                dollarAmt / (cat.unit === "/guest" ? guests : 1) > cat.market.high ? cat.hints.high :
-                cat.hints.ok
-              ) : null;
-
+              const hint = cat.on ? (dollarAmt / (cat.unit === "/guest" ? guests : 1) < cat.market.low ? cat.hints.low : dollarAmt / (cat.unit === "/guest" ? guests : 1) > cat.market.high ? cat.hints.high : cat.hints.ok) : null;
               return (
                 <div key={cat.id} style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "14px", opacity: cat.on ? 1 : 0.45, transition: "opacity 0.2s" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: cat.on ? "10px" : 0 }}>
-                    {/* Toggle */}
                     <div onClick={() => toggleCat(cat.id)} style={{ width: "36px", height: "20px", borderRadius: "10px", background: cat.on ? "#1D9E75" : "#2A2A4A", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
                       <div style={{ position: "absolute", top: "3px", left: cat.on ? "19px" : "3px", width: "14px", height: "14px", borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
                     </div>
@@ -256,41 +194,18 @@ function DashboardTab({ event, sentVendorIds }) {
                     <span style={{ fontSize: "12px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace" }}>{cat.pct}%</span>
                     <span style={{ fontSize: "13px", fontWeight: 600, color: "#E8E8F0", fontFamily: "'Space Mono', monospace", minWidth: "70px", textAlign: "right" }}>${dollarAmt.toLocaleString()}</span>
                     <span style={{ fontSize: "11px", color: "#5A5A7A", minWidth: "60px", textAlign: "right" }}>${perGuest}/guest</span>
-                    {cat.on && (
-                      <div style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "6px", background: bc.bg, border: `1px solid ${bc.border}`, color: bc.text, fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>
-                        {badgeText}
-                      </div>
-                    )}
+                    {cat.on && <div style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "6px", background: bc.bg, border: `1px solid ${bc.border}`, color: bc.text, fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>{badgeText}</div>}
                   </div>
-                  {cat.on && (
-                    <>
-                      <input type="range" min="1" max="80" step="1" value={cat.pct}
-                        onChange={e => setPct(cat.id, parseInt(e.target.value))}
-                        style={{ width: "100%", marginBottom: "6px" }} />
-                      <div style={{ fontSize: "11px", color: "#5A5A7A", fontStyle: "italic" }}>{hint}</div>
-                    </>
-                  )}
+                  {cat.on && (<><input type="range" min="1" max="80" step="1" value={cat.pct} onChange={e => setPct(cat.id, parseInt(e.target.value))} style={{ width: "100%", marginBottom: "6px" }} /><div style={{ fontSize: "11px", color: "#5A5A7A", fontStyle: "italic" }}>{hint}</div></>)}
                 </div>
               );
             })}
           </div>
-
-          {isOver && (
-            <div style={{ marginTop: "12px", background: "#FF3E9A11", border: "1px solid #FF3E9A33", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace" }}>
-              ⚠ OVER BUDGET BY ${Math.abs(remaining).toLocaleString()} — reduce allocations or increase total budget
-            </div>
-          )}
+          {isOver && <div style={{ marginTop: "12px", background: "#FF3E9A11", border: "1px solid #FF3E9A33", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace" }}>⚠ OVER BUDGET BY ${Math.abs(remaining).toLocaleString()}</div>}
         </div>
-
-        {/* Right column: progress + breakdown */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-
-          {/* Planning checklist */}
           <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", padding: "20px" }}>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", letterSpacing: "0.1em", marginBottom: "16px" }}>
-              ✓ PLANNING CHECKLIST
-            </div>
-            {/* Progress bar */}
+            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", letterSpacing: "0.1em", marginBottom: "16px" }}>✓ PLANNING CHECKLIST</div>
             <div style={{ height: "4px", background: "#1A1A2E", borderRadius: "2px", marginBottom: "16px" }}>
               <div style={{ height: "100%", borderRadius: "2px", background: "linear-gradient(90deg, #FF6B35, #A8FF3E)", width: `${progressPct}%`, transition: "width 0.5s ease" }} />
             </div>
@@ -300,17 +215,13 @@ function DashboardTab({ event, sentVendorIds }) {
                   <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: item.done ? "#A8FF3E" : "#1A1A2E", border: item.done ? "none" : "1px solid #2A2A4A", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {item.done && <span style={{ fontSize: "10px", color: "#07070F", fontWeight: 700 }}>✓</span>}
                   </div>
-                  <span style={{ fontSize: "12px", color: item.done ? "#E8E8F0" : "#5A5A7A", textDecoration: item.done ? "none" : "none" }}>{item.label}</span>
+                  <span style={{ fontSize: "12px", color: item.done ? "#E8E8F0" : "#5A5A7A" }}>{item.label}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Budget breakdown donut-style bars */}
           <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", padding: "20px" }}>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.1em", marginBottom: "16px" }}>
-              📊 BUDGET BREAKDOWN
-            </div>
+            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.1em", marginBottom: "16px" }}>📊 BUDGET BREAKDOWN</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {cats.filter(c => c.on).map((cat, i) => {
                 const colors = ["#FF6B35", "#00D4FF", "#A8FF3E", "#FF3E9A", "#FFB800", "#B388FF"];
@@ -331,28 +242,413 @@ function DashboardTab({ event, sentVendorIds }) {
               })}
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          {/* Event details card */}
-          {(event.name || event.date) && (
-            <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", padding: "20px" }}>
-              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.1em", marginBottom: "12px" }}>EVENT DETAILS</div>
+// ── Guests Tab ────────────────────────────────────────────────────────────────
+function GuestsTab() {
+  const [guests, setGuests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [scrapingFor, setScrapingFor] = useState(null);
+  const [selectedGuest, setSelectedGuest] = useState(null);
+  const [scrapeStatus, setScrapeStatus] = useState({});
+
+  useEffect(() => { fetchGuests(); }, []);
+
+  async function fetchGuests() {
+    setLoading(true);
+    try {
+      const resp = await fetch(`${RAILWAY_URL}/guests`);
+      const data = await resp.json();
+      setGuests(data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }
+
+  async function scrapeLinkedIn(guest) {
+    if (!guest.linkedin_url) return;
+    setScrapingFor(guest.id);
+    setScrapeStatus(s => ({ ...s, [guest.id]: "scraping" }));
+
+    // Open LinkedIn in a new tab so user is logged in
+    window.open(guest.linkedin_url, "_blank");
+
+    try {
+      // Use Claude API to fetch and parse the LinkedIn profile
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+          messages: [{
+            role: "user",
+            content: `Fetch and parse this LinkedIn profile: ${guest.linkedin_url}
+
+Extract and return ONLY a JSON object with these fields:
+{
+  "full_name": "string",
+  "headline": "string",
+  "current_role": "string",
+  "current_company": "string",
+  "location": "string",
+  "summary": "2-3 sentence summary of who they are and what they do",
+  "experiences": [{"title": "string", "company": "string", "duration": "string"}],
+  "education": [{"school": "string", "degree": "string"}],
+  "skills": ["string"],
+  "connection_count": number or null
+}
+
+Return ONLY the JSON, no explanation, no markdown backticks.`
+          }],
+        }),
+      });
+
+      const data = await response.json();
+
+      // Extract text from response — may be after tool use blocks
+      let profileJson = null;
+      for (const block of data.content || []) {
+        if (block.type === "text" && block.text) {
+          try {
+            const clean = block.text.replace(/```json|```/g, "").trim();
+            profileJson = JSON.parse(clean);
+            break;
+          } catch {
+            // Try to find JSON in the text
+            const match = block.text.match(/\{[\s\S]+\}/);
+            if (match) {
+              try { profileJson = JSON.parse(match[0]); break; } catch {}
+            }
+          }
+        }
+      }
+
+      if (profileJson) {
+        // Save to Supabase via Railway
+        const patchResp = await fetch(`${RAILWAY_URL}/guests/${encodeURIComponent(guest.phone)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            linkedin_data: profileJson,
+            name: profileJson.full_name || guest.name,
+          }),
+        });
+
+        if (patchResp.ok) {
+          setScrapeStatus(s => ({ ...s, [guest.id]: "done" }));
+          // Update local state
+          setGuests(prev => prev.map(g => g.id === guest.id ? {
+            ...g,
+            linkedin_data: profileJson,
+            name: profileJson.full_name || g.name,
+          } : g));
+        } else {
+          setScrapeStatus(s => ({ ...s, [guest.id]: "error" }));
+        }
+      } else {
+        setScrapeStatus(s => ({ ...s, [guest.id]: "error" }));
+      }
+    } catch (e) {
+      console.error(e);
+      setScrapeStatus(s => ({ ...s, [guest.id]: "error" }));
+    } finally {
+      setScrapingFor(null);
+    }
+  }
+
+  const rsvpColors = {
+    confirmed: { bg: "#A8FF3E18", border: "#A8FF3E44", text: "#A8FF3E" },
+    declined: { bg: "#FF3E9A18", border: "#FF3E9A44", text: "#FF3E9A" },
+    pending: { bg: "#FFB80018", border: "#FFB80044", text: "#FFB800" },
+  };
+
+  const totalGuests = guests.length;
+  const confirmed = guests.filter(g => g.rsvp_status === "confirmed").length;
+  const pending = guests.filter(g => g.rsvp_status === "pending").length;
+  const scraped = guests.filter(g => g.linkedin_data).length;
+
+  return (
+    <div style={{ padding: "28px", overflowY: "auto", height: "100%" }}>
+      {/* Stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
+        {[
+          { label: "Total Guests", value: totalGuests, color: "#00D4FF" },
+          { label: "Confirmed", value: confirmed, color: "#A8FF3E" },
+          { label: "Pending", value: pending, color: "#FFB800" },
+          { label: "LinkedIn Scraped", value: `${scraped}/${totalGuests}`, color: scraped === totalGuests && totalGuests > 0 ? "#A8FF3E" : "#FF6B35" },
+        ].map((stat, i) => (
+          <div key={i} style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "16px" }}>
+            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.1em", marginBottom: "8px" }}>{stat.label.toUpperCase()}</div>
+            <div style={{ fontSize: "28px", fontWeight: 600, color: stat.color, fontFamily: "'Space Mono', monospace" }}>{stat.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+        <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.1em" }}>
+          👥 GUEST LIST — CLICK ROW TO VIEW PROFILE
+        </div>
+        <button onClick={fetchGuests} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "6px 14px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}>
+          ↺ REFRESH
+        </button>
+      </div>
+
+      {/* Guest table */}
+      <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", overflow: "hidden" }}>
+        {/* Table header */}
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 140px", gap: "0", padding: "12px 20px", borderBottom: "1px solid #1A1A2E", background: "#07070F" }}>
+          {["NAME / PHONE", "LINKEDIN", "WHAT THEY DO", "MEET", "RSVP", "LINKEDIN DATA"].map(h => (
+            <div key={h} style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.12em" }}>{h}</div>
+          ))}
+        </div>
+
+        {loading ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "12px" }}>
+            LOADING GUESTS...
+          </div>
+        ) : guests.length === 0 ? (
+          <div style={{ padding: "60px", textAlign: "center" }}>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>👥</div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: "#3A3A5A", marginBottom: "8px" }}>NO GUESTS YET</div>
+            <div style={{ fontSize: "13px", color: "#5A5A7A" }}>Send the Sona WhatsApp link to start onboarding guests</div>
+          </div>
+        ) : (
+          guests.map((guest, idx) => {
+            const hasLinkedIn = !!guest.linkedin_url;
+            const hasData = !!guest.linkedin_data;
+            const status = scrapeStatus[guest.id];
+            const isScrapingThis = scrapingFor === guest.id;
+            const rsvp = guest.rsvp_status || "pending";
+            const rc = rsvpColors[rsvp] || rsvpColors.pending;
+            const phone = guest.phone?.replace("whatsapp:", "") || "—";
+            const ld = guest.linkedin_data;
+
+            return (
+              <div
+                key={guest.id}
+                onClick={() => setSelectedGuest(guest)}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 140px",
+                  gap: "0",
+                  padding: "14px 20px",
+                  borderBottom: idx < guests.length - 1 ? "1px solid #0F0F1A" : "none",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  alignItems: "center",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#0F0F1A"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                {/* Name / Phone */}
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 500, color: "#E8E8F0", marginBottom: "2px" }}>
+                    {ld?.full_name || guest.name || "Unknown"}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace" }}>{phone}</div>
+                </div>
+
+                {/* LinkedIn */}
+                <div>
+                  {hasLinkedIn ? (
+                    <a
+                      href={guest.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      style={{ fontSize: "11px", color: "#00D4FF", textDecoration: "none", fontFamily: "'Space Mono', monospace" }}
+                    >
+                      {guest.linkedin_url.replace("https://", "").replace("www.", "").split("/").slice(0, 3).join("/")}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: "11px", color: "#3A3A5A" }}>—</span>
+                  )}
+                </div>
+
+                {/* What they do */}
+                <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                  {ld?.summary || guest.what_they_do || <span style={{ color: "#3A3A5A" }}>—</span>}
+                </div>
+
+                {/* Who to meet */}
+                <div style={{ fontSize: "11px", color: "#8888AA" }}>
+                  {guest.who_they_want_to_meet ? guest.who_they_want_to_meet.slice(0, 30) + (guest.who_they_want_to_meet.length > 30 ? "..." : "") : <span style={{ color: "#3A3A5A" }}>—</span>}
+                </div>
+
+                {/* RSVP */}
+                <div>
+                  <div style={{ display: "inline-block", fontSize: "10px", fontFamily: "'Space Mono', monospace", padding: "3px 8px", borderRadius: "6px", background: rc.bg, border: `1px solid ${rc.border}`, color: rc.text }}>
+                    {rsvp.toUpperCase()}
+                  </div>
+                </div>
+
+                {/* Scrape button */}
+                <div onClick={e => e.stopPropagation()}>
+                  {!hasLinkedIn ? (
+                    <div style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>NO URL</div>
+                  ) : hasData && status !== "error" ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓ SCRAPED</div>
+                      <button
+                        onClick={() => scrapeLinkedIn(guest)}
+                        disabled={isScrapingThis}
+                        style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 6px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}
+                      >↺</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => scrapeLinkedIn(guest)}
+                      disabled={isScrapingThis}
+                      style={{
+                        background: isScrapingThis ? "#0A0A18" : status === "error" ? "#FF3E9A11" : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
+                        border: `1px solid ${isScrapingThis ? "#1A1A2E" : status === "error" ? "#FF3E9A44" : "#00D4FF44"}`,
+                        borderRadius: "8px",
+                        padding: "6px 12px",
+                        color: isScrapingThis ? "#3A3A5A" : status === "error" ? "#FF3E9A" : "#00D4FF",
+                        fontFamily: "'Space Mono', monospace",
+                        fontSize: "10px",
+                        cursor: isScrapingThis ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {isScrapingThis ? (
+                        <><span style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />SCRAPING</>
+                      ) : status === "error" ? "✗ RETRY" : "⬇ SCRAPE"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Guest profile modal */}
+      {selectedGuest && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(12px)" }}
+          onClick={() => setSelectedGuest(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "20px", width: "560px", maxHeight: "80vh", overflowY: "auto", padding: "28px" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
+              <div>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", letterSpacing: "0.1em", marginBottom: "6px" }}>GUEST PROFILE</div>
+                <div style={{ fontSize: "20px", fontWeight: 600, color: "#E8E8F0" }}>
+                  {selectedGuest.linkedin_data?.full_name || selectedGuest.name || "Unknown Guest"}
+                </div>
+                {selectedGuest.linkedin_data?.headline && (
+                  <div style={{ fontSize: "13px", color: "#8888AA", marginTop: "4px" }}>{selectedGuest.linkedin_data.headline}</div>
+                )}
+              </div>
+              <button onClick={() => setSelectedGuest(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+
+            {/* Basic info */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
               {[
-                ["Name", event.name],
-                ["Date", event.date],
-                ["Venue", event.venue],
-                ["City", event.city],
-                ["Guests", event.guestCount],
-                ["Audience", event.audience],
-              ].filter(([, v]) => v).map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "11px", color: "#5A5A7A" }}>{k}</span>
-                  <span style={{ fontSize: "11px", color: "#E8E8F0", textAlign: "right", maxWidth: "180px" }}>{v}</span>
+                ["Phone", selectedGuest.phone?.replace("whatsapp:", "") || "—"],
+                ["RSVP", selectedGuest.rsvp_status || "pending"],
+                ["Location", selectedGuest.linkedin_data?.location || selectedGuest.city || "—"],
+                ["Company", selectedGuest.linkedin_data?.current_company || "—"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
+                  <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "4px" }}>{k.toUpperCase()}</div>
+                  <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{v}</div>
                 </div>
               ))}
             </div>
-          )}
+
+            {/* LinkedIn data */}
+            {selectedGuest.linkedin_data ? (
+              <>
+                {selectedGuest.linkedin_data.summary && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>SUMMARY</div>
+                    <div style={{ fontSize: "13px", color: "#8888AA", lineHeight: 1.6 }}>{selectedGuest.linkedin_data.summary}</div>
+                  </div>
+                )}
+
+                {selectedGuest.linkedin_data.experiences?.length > 0 && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>EXPERIENCE</div>
+                    {selectedGuest.linkedin_data.experiences.slice(0, 3).map((exp, i) => (
+                      <div key={i} style={{ marginBottom: i < 2 ? "10px" : 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 500, color: "#E8E8F0" }}>{exp.title}</div>
+                        <div style={{ fontSize: "12px", color: "#5A5A7A" }}>{exp.company} · {exp.duration}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedGuest.linkedin_data.skills?.length > 0 && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "10px" }}>SKILLS</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {selectedGuest.linkedin_data.skills.slice(0, 10).map((skill, i) => (
+                        <div key={i} style={{ fontSize: "11px", padding: "3px 10px", borderRadius: "20px", background: "#1A1A2E", color: "#8888AA", fontFamily: "'DM Sans', sans-serif" }}>{skill}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "20px", textAlign: "center" }}>
+                <div style={{ fontSize: "12px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", marginBottom: "12px" }}>NO LINKEDIN DATA YET</div>
+                {selectedGuest.linkedin_url && (
+                  <button
+                    onClick={() => { scrapeLinkedIn(selectedGuest); setSelectedGuest(null); }}
+                    style={{ background: "linear-gradient(135deg, #00D4FF, #0088AA)", border: "none", borderRadius: "10px", padding: "10px 24px", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}
+                  >
+                    ⬇ SCRAPE NOW
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* What they said */}
+            {(selectedGuest.what_they_do || selectedGuest.who_they_want_to_meet || selectedGuest.interests) && (
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginTop: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>FROM ONBOARDING</div>
+                {selectedGuest.what_they_do && <div style={{ marginBottom: "8px" }}><span style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>WORKING ON: </span><span style={{ fontSize: "13px", color: "#8888AA" }}>{selectedGuest.what_they_do}</span></div>}
+                {selectedGuest.who_they_want_to_meet && <div style={{ marginBottom: "8px" }}><span style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>WANTS TO MEET: </span><span style={{ fontSize: "13px", color: "#8888AA" }}>{selectedGuest.who_they_want_to_meet}</span></div>}
+                {selectedGuest.interests && <div><span style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>INTERESTS: </span><span style={{ fontSize: "13px", color: "#8888AA" }}>{selectedGuest.interests}</span></div>}
+              </div>
+            )}
+
+            {/* Personalized invite */}
+            {selectedGuest.personalized_invite && (
+              <div style={{ background: "#FF6B3511", border: "1px solid #FF6B3533", borderRadius: "10px", padding: "14px", marginTop: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", marginBottom: "8px" }}>PERSONALIZED INVITE SENT</div>
+                <div style={{ fontSize: "13px", color: "#E8E8F0", lineHeight: 1.6, fontStyle: "italic" }}>"{selectedGuest.personalized_invite}"</div>
+              </div>
+            )}
+
+            {selectedGuest.linkedin_url && (
+              <a href={selectedGuest.linkedin_url} target="_blank" rel="noopener noreferrer"
+                style={{ display: "block", marginTop: "16px", textAlign: "center", fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", textDecoration: "none", padding: "10px", border: "1px solid #00D4FF33", borderRadius: "10px" }}>
+                VIEW ON LINKEDIN ↗
+              </a>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -419,33 +715,22 @@ function GmailModal({ vendor, draftContent, onClose, onSent }) {
         <div style={{ display: "flex", flexDirection: "column", padding: "0 24px", overflowY: "auto", flex: 1 }}>
           <div style={{ borderBottom: "1px solid #1E1E35", padding: "14px 0", display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", width: "60px", flexShrink: 0 }}>TO</div>
-            <input value={to} onChange={e => setTo(e.target.value)} placeholder="vendor@email.com"
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: hasEmail ? "#E8E8F0" : "#FF3E9A", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }} />
+            <input value={to} onChange={e => setTo(e.target.value)} placeholder="vendor@email.com" style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: hasEmail ? "#E8E8F0" : "#FF3E9A", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }} />
             {!hasEmail && <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF3E9A", background: "#FF3E9A11", border: "1px solid #FF3E9A33", borderRadius: "6px", padding: "3px 8px", whiteSpace: "nowrap" }}>NO EMAIL FOUND</div>}
             {hasEmail && <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓</div>}
           </div>
           <div style={{ borderBottom: "1px solid #1E1E35", padding: "14px 0", display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", width: "60px", flexShrink: 0 }}>SUBJECT</div>
-            <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Email subject..."
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }} />
+            <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Email subject..." style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }} />
           </div>
           <div style={{ padding: "16px 0", flex: 1 }}>
-            <textarea value={body} onChange={e => setBody(e.target.value)} rows={12}
-              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px", lineHeight: "1.7", resize: "vertical", minHeight: "240px" }} />
+            <textarea value={body} onChange={e => setBody(e.target.value)} rows={12} style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px", lineHeight: "1.7", resize: "vertical", minHeight: "240px" }} />
           </div>
         </div>
         <div style={{ padding: "16px 24px", borderTop: "1px solid #1E1E35", display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={handleSend} disabled={!hasEmail || sending || sent} style={{
-            background: sent ? "linear-gradient(135deg, #A8FF3E, #4ADE80)" : hasEmail ? "linear-gradient(135deg, #00D4FF, #0088AA)" : "#1A1A2E",
-            border: hasEmail ? "none" : "1px solid #2A2A4A", borderRadius: "10px", padding: "12px 28px",
-            color: sent ? "#07070F" : hasEmail ? "white" : "#3A3A5A",
-            fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em",
-            cursor: hasEmail && !sending && !sent ? "pointer" : "not-allowed",
-            display: "flex", alignItems: "center", gap: "8px",
-          }}>
+          <button onClick={handleSend} disabled={!hasEmail || sending || sent} style={{ background: sent ? "linear-gradient(135deg, #A8FF3E, #4ADE80)" : hasEmail ? "linear-gradient(135deg, #00D4FF, #0088AA)" : "#1A1A2E", border: hasEmail ? "none" : "1px solid #2A2A4A", borderRadius: "10px", padding: "12px 28px", color: sent ? "#07070F" : hasEmail ? "white" : "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em", cursor: hasEmail && !sending && !sent ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: "8px" }}>
             {sent ? "✓ SENT" : sending ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", display: "inline-block", animation: "spin 0.8s linear infinite" }} />SENDING...</> : "SEND →"}
           </button>
-          {!hasEmail && <div style={{ fontSize: "12px", color: "#5A5A7A" }}>Add an email above to send</div>}
           {error && <div style={{ fontSize: "12px", color: "#FF3E9A" }}>{error}</div>}
           <div style={{ marginLeft: "auto", fontSize: "11px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>SENDS FROM GMAIL</div>
         </div>
@@ -461,30 +746,17 @@ function VendorCard({ vendor, onDraftEmail, generatingFor, sentVendorIds }) {
   const isGenerating = generatingFor === vendor.id;
   const isSent = sentVendorIds.has(vendor.id);
   const btnLabel = isGenerating ? null : isSent ? (hoveringBtn ? "↺ RESEND" : "✓ EMAILED") : "✉ DRAFT EMAIL";
-  const btnStyle = {
-    flex: 1, borderRadius: "8px", padding: "8px",
-    background: isGenerating ? "#0A0A18" : isSent ? (hoveringBtn ? "linear-gradient(135deg,#00D4FF22,#00D4FF11)" : "linear-gradient(135deg,#A8FF3E18,#A8FF3E08)") : "linear-gradient(135deg,#00D4FF22,#00D4FF11)",
-    border: isGenerating ? "1px solid #1A1A2E" : isSent ? (hoveringBtn ? "1px solid #00D4FF44" : "1px solid #A8FF3E44") : "1px solid #00D4FF44",
-    color: isGenerating ? "#3A3A5A" : isSent ? (hoveringBtn ? "#00D4FF" : "#A8FF3E") : "#00D4FF",
-    fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em",
-    cursor: isGenerating ? "not-allowed" : "pointer", transition: "all 0.15s",
-    display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-  };
+  const btnStyle = { flex: 1, borderRadius: "8px", padding: "8px", background: isGenerating ? "#0A0A18" : isSent ? (hoveringBtn ? "linear-gradient(135deg,#00D4FF22,#00D4FF11)" : "linear-gradient(135deg,#A8FF3E18,#A8FF3E08)") : "linear-gradient(135deg,#00D4FF22,#00D4FF11)", border: isGenerating ? "1px solid #1A1A2E" : isSent ? (hoveringBtn ? "1px solid #00D4FF44" : "1px solid #A8FF3E44") : "1px solid #00D4FF44", color: isGenerating ? "#3A3A5A" : isSent ? (hoveringBtn ? "#00D4FF" : "#A8FF3E") : "#00D4FF", fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.05em", cursor: isGenerating ? "not-allowed" : "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" };
   return (
-    <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", overflow: "hidden", transition: "border-color 0.2s" }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = "#00D4FF33"}
-      onMouseLeave={e => e.currentTarget.style.borderColor = "#1A1A2E"}>
+    <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", overflow: "hidden", transition: "border-color 0.2s" }} onMouseEnter={e => e.currentTarget.style.borderColor = "#00D4FF33"} onMouseLeave={e => e.currentTarget.style.borderColor = "#1A1A2E"}>
       {vendor.image_url && (
         <div style={{ height: "120px", overflow: "hidden", position: "relative" }}>
           <img src={vendor.image_url} alt={vendor.name} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.8 }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, #0A0A18)" }} />
-          <div style={{ position: "absolute", bottom: "8px", left: "12px" }}>
-            <span style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", background: "#0A0A18CC", padding: "2px 6px", borderRadius: "4px" }}>{vendor.categories?.[0]}</span>
-          </div>
+          <div style={{ position: "absolute", bottom: "8px", left: "12px" }}><span style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", background: "#0A0A18CC", padding: "2px 6px", borderRadius: "4px" }}>{vendor.categories?.[0]}</span></div>
           {isSent && <div style={{ position: "absolute", top: "8px", right: "8px", background: "#A8FF3ECC", borderRadius: "6px", padding: "3px 8px", fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#07070F" }}>✓ EMAILED</div>}
         </div>
       )}
-      {!vendor.image_url && isSent && <div style={{ background: "linear-gradient(135deg,#A8FF3E18,#A8FF3E08)", borderBottom: "1px solid #A8FF3E33", padding: "6px 14px" }}><span style={{ fontSize: "10px", color: "#A8FF3E", fontFamily: "'Space Mono', monospace" }}>✓ EMAIL SENT</span></div>}
       <div style={{ padding: "14px" }}>
         <div style={{ fontSize: "14px", fontWeight: 600, color: "#E8E8F0", marginBottom: "4px" }}>{vendor.name}</div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
@@ -500,12 +772,10 @@ function VendorCard({ vendor, onDraftEmail, generatingFor, sentVendorIds }) {
         <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "4px" }}>📍 {vendor.address}</div>
         {vendor.phone && vendor.phone !== "N/A" && <div style={{ fontSize: "11px", color: "#5A5A7A", marginBottom: "10px" }}>📞 {vendor.phone}</div>}
         <div style={{ display: "flex", gap: "8px" }}>
-          <button onClick={() => onDraftEmail(vendor)} disabled={isGenerating} style={btnStyle}
-            onMouseEnter={() => setHoveringBtn(true)} onMouseLeave={() => setHoveringBtn(false)}>
+          <button onClick={() => onDraftEmail(vendor)} disabled={isGenerating} style={btnStyle} onMouseEnter={() => setHoveringBtn(true)} onMouseLeave={() => setHoveringBtn(false)}>
             {isGenerating ? <><span style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />DRAFTING...</> : btnLabel}
           </button>
-          <a href={vendor.url} target="_blank" rel="noopener noreferrer"
-            style={{ padding: "8px 12px", background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", textDecoration: "none", display: "flex", alignItems: "center" }}>YELP ↗</a>
+          <a href={vendor.url} target="_blank" rel="noopener noreferrer" style={{ padding: "8px 12px", background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", textDecoration: "none", display: "flex", alignItems: "center" }}>YELP ↗</a>
         </div>
       </div>
     </div>
@@ -542,17 +812,9 @@ function VendorSearchPanel({ event, onDraftEmail, vendors, setVendors, summary, 
         <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.1em", marginBottom: "16px" }}>🔍 VENDOR SEARCH · PRESS ENTER TO SEARCH</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
           {[{ key: "keywords", label: "KEYWORDS", placeholder: "asian food..." }, { key: "budget", label: "MAX BUDGET ($)", placeholder: "600" }, { key: "guest_count", label: "GUEST COUNT", placeholder: "50" }, { key: "min_rating", label: "MIN RATING", placeholder: "4.25" }, { key: "location", label: "LOCATION", placeholder: "Los Angeles, CA" }].map(({ key, label, placeholder }) => (
-            <div key={key}>
-              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>{label}</div>
-              <input value={searchParams[key]} onChange={e => setSearchParams(p => ({ ...p, [key]: e.target.value }))} onKeyDown={handleKey} placeholder={placeholder} disabled={loading} style={iStyle(loading)} />
-            </div>
+            <div key={key}><div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>{label}</div><input value={searchParams[key]} onChange={e => setSearchParams(p => ({ ...p, [key]: e.target.value }))} onKeyDown={handleKey} placeholder={placeholder} disabled={loading} style={iStyle(loading)} /></div>
           ))}
-          <div>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>CATEGORY</div>
-            <select value={searchParams.category} onChange={e => setSearchParams(p => ({ ...p, category: e.target.value }))} onKeyDown={handleKey} disabled={loading} style={iStyle(loading)}>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
+          <div><div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>CATEGORY</div><select value={searchParams.category} onChange={e => setSearchParams(p => ({ ...p, category: e.target.value }))} onKeyDown={handleKey} disabled={loading} style={iStyle(loading)}>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={loading ? undefined : search} disabled={loading} style={{ flex: 1, background: loading ? "#0A0A18" : "linear-gradient(135deg,#00D4FF,#0088AA)", border: loading ? "1px solid #1A1A2E" : "none", borderRadius: "10px", padding: "12px", color: loading ? "#3A3A5A" : "white", fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
@@ -605,14 +867,12 @@ function SetupPanel({ event, onSave, onClose }) {
           {fields.map(({ key, label, placeholder }) => (
             <div key={key}>
               <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>{label.toUpperCase()}</div>
-              <input type="text" value={form[key]} onChange={e => update(key, e.target.value)} placeholder={placeholder}
-                style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "10px 14px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box" }} />
+              <input type="text" value={form[key]} onChange={e => update(key, e.target.value)} placeholder={placeholder} style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "10px 14px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box" }} />
             </div>
           ))}
           <div>
             <div style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>ADDITIONAL CONTEXT</div>
-            <textarea value={form.additionalContext} onChange={e => update("additionalContext", e.target.value)} placeholder="e.g. I want a DJ, open bar..." rows={3}
-              style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "10px 14px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px", outline: "none", resize: "none", boxSizing: "border-box" }} />
+            <textarea value={form.additionalContext} onChange={e => update("additionalContext", e.target.value)} placeholder="e.g. I want a DJ, open bar..." rows={3} style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "10px 14px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "14px", outline: "none", resize: "none", boxSizing: "border-box" }} />
           </div>
         </div>
         <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
@@ -625,7 +885,7 @@ function SetupPanel({ event, onSave, onClose }) {
 }
 
 function TypingIndicator() {
-  return <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "14px 18px" }}>{[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#FF6B35", animation: "bounce 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}</div>;
+  return <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "14px 18px" }}>{[0, 1, 2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#FF6B35", animation: "bounce 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />)}</div>;
 }
 
 function Message({ msg, workstreams }) {
@@ -640,8 +900,7 @@ function Message({ msg, workstreams }) {
           <div style={{ fontSize: "14px", lineHeight: "1.7", color: "#E8E8F0", whiteSpace: "pre-wrap", fontFamily: "'DM Sans', sans-serif" }}>{msg.content}</div>
         </div>
         {msg.role === "assistant" && (
-          <button onClick={() => { navigator.clipboard.writeText(msg.content); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-            style={{ position: "absolute", bottom: "-22px", right: "4px", background: "transparent", border: "none", cursor: "pointer", fontSize: "11px", fontFamily: "'Space Mono', monospace", color: copied ? "#A8FF3E" : "#3A3A5A", padding: "2px 6px" }}>
+          <button onClick={() => { navigator.clipboard.writeText(msg.content); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ position: "absolute", bottom: "-22px", right: "4px", background: "transparent", border: "none", cursor: "pointer", fontSize: "11px", fontFamily: "'Space Mono', monospace", color: copied ? "#A8FF3E" : "#3A3A5A", padding: "2px 6px" }}>
             {copied ? "COPIED ✓" : "COPY"}
           </button>
         )}
@@ -651,8 +910,8 @@ function Message({ msg, workstreams }) {
 }
 
 const INITIAL_MESSAGE = (ws) => ({ role: "assistant", content: `Hey — I'm Sona. This is your ${ws} workspace.\n\nSet up your event using the ✦ button, then tell me what you need.`, workstream: ws });
-const DEFAULT_ALL_MESSAGES = { marketing: [INITIAL_MESSAGE("marketing")], vendors: [INITIAL_MESSAGE("vendors")], guests: [INITIAL_MESSAGE("guests")], logistics: [INITIAL_MESSAGE("logistics")] };
-const DEFAULT_ALL_HISTORY = { marketing: [], vendors: [], guests: [], logistics: [] };
+const DEFAULT_ALL_MESSAGES = { marketing: [INITIAL_MESSAGE("marketing")], vendors: [INITIAL_MESSAGE("vendors")], logistics: [INITIAL_MESSAGE("logistics")] };
+const DEFAULT_ALL_HISTORY = { marketing: [], vendors: [], logistics: [] };
 
 export default function SonaAgent() {
   const [event, setEvent] = useState(() => { try { const s = localStorage.getItem("sona_event"); return s ? JSON.parse(s) : DEFAULT_EVENT; } catch { return DEFAULT_EVENT; } });
@@ -671,6 +930,8 @@ export default function SonaAgent() {
   const [vendorView, setVendorView] = useState("search");
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
+
+  const chatWorkstreams = ["marketing", "vendors", "logistics"];
   const messages = allMessages[activeWorkstream] || [];
   const history = allHistory[activeWorkstream] || [];
 
@@ -685,12 +946,8 @@ export default function SonaAgent() {
   const saveEvent = (newEvent) => {
     setEvent(newEvent);
     try { localStorage.setItem("sona_event", JSON.stringify(newEvent)); } catch {}
-    const welcomeMsg = { role: "assistant", content: `Event saved! I now know everything about ${newEvent.name || "your event"}${newEvent.date ? ` on ${newEvent.date}` : ""}${newEvent.venue ? ` at ${newEvent.venue}` : ""}.\n\nWhat do you need first?`, workstream: "marketing" };
-    const newMessages = { ...DEFAULT_ALL_MESSAGES, marketing: [welcomeMsg] };
-    setAllMessages(newMessages);
+    setAllMessages(DEFAULT_ALL_MESSAGES);
     setAllHistory(DEFAULT_ALL_HISTORY);
-    try { localStorage.setItem("sona_messages", JSON.stringify(newMessages)); } catch {}
-    try { localStorage.setItem("sona_history", JSON.stringify(DEFAULT_ALL_HISTORY)); } catch {}
     setActiveWorkstream("dashboard");
   };
 
@@ -734,21 +991,20 @@ export default function SonaAgent() {
   };
 
   const handleClear = () => {
-    if (activeWorkstream === "dashboard") return;
+    if (!chatWorkstreams.includes(activeWorkstream)) return;
     const reset = { ...allMessages, [activeWorkstream]: [INITIAL_MESSAGE(activeWorkstream)] };
     const resetHistory = { ...allHistory, [activeWorkstream]: [] };
     setAllMessages(reset);
     setAllHistory(resetHistory);
-    try { localStorage.setItem("sona_messages", JSON.stringify(reset)); } catch {}
-    try { localStorage.setItem("sona_history", JSON.stringify(resetHistory)); } catch {}
     if (activeWorkstream === "vendors") { setVendorResults([]); setVendorSummary(null); setVendorSearched(false); setVendorView("search"); }
   };
 
-  const eventConfigured = event.name || event.date || event.venue;
   const isDashboard = activeWorkstream === "dashboard";
+  const isGuests = activeWorkstream === "guests";
   const isVendors = activeWorkstream === "vendors";
-  const isChatWorkstream = !isDashboard;
+  const isChatTab = chatWorkstreams.includes(activeWorkstream);
   const ws = WORKSTREAMS.find(w => w.id === activeWorkstream);
+  const eventConfigured = event.name || event.date || event.venue;
 
   return (
     <>
@@ -810,7 +1066,7 @@ export default function SonaAgent() {
             </button>
           ))}
 
-          {!isDashboard && ws?.templates && (
+          {isChatTab && ws?.templates && (
             <div style={{ marginTop: "16px" }}>
               <div style={{ fontSize: "10px", fontFamily: "'Space Mono',monospace", color: "#3A3A5A", letterSpacing: "0.1em", marginBottom: "8px", paddingLeft: "4px" }}>QUICK PROMPTS</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -819,7 +1075,7 @@ export default function SonaAgent() {
             </div>
           )}
 
-          {!isDashboard && (
+          {isChatTab && (
             <button className="clear-btn" onClick={handleClear} style={{ marginTop: "auto" }}>
               RESET {activeWorkstream.toUpperCase()} ↺
             </button>
@@ -837,12 +1093,12 @@ export default function SonaAgent() {
                 <span style={{ color: "#2A2A4A" }}>·</span>
                 <span style={{ fontSize: "13px", color: "#5A5A7A" }}>
                   {isDashboard && "Budget · Countdown · Progress"}
+                  {isGuests && "Onboarded guests · LinkedIn scraping · RSVP status"}
                   {activeWorkstream === "marketing" && "Instagram, DMs, event copy"}
-                  {activeWorkstream === "vendors" && "Find & contact vendors"}
-                  {activeWorkstream === "guests" && "Invitations, RSVPs, reminders"}
+                  {isVendors && "Find & contact vendors"}
                   {activeWorkstream === "logistics" && "Timelines, checklists, run-of-show"}
                 </span>
-                {isVendors && !isDashboard && (
+                {isVendors && (
                   <div style={{ marginLeft: "auto", display: "flex", gap: "4px", background: "#0F0F1A", borderRadius: "8px", padding: "4px" }}>
                     {["search", "chat"].map(v => (
                       <button key={v} onClick={() => setVendorView(v)} style={{ padding: "6px 14px", borderRadius: "6px", border: "none", cursor: "pointer", fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.08em", background: vendorView === v ? "#00D4FF22" : "transparent", color: vendorView === v ? "#00D4FF" : "#5A5A7A", transition: "all 0.15s" }}>
@@ -850,9 +1106,6 @@ export default function SonaAgent() {
                       </button>
                     ))}
                   </div>
-                )}
-                {!isVendors && !isDashboard && eventConfigured && (
-                  <><span style={{ color: "#2A2A4A", marginLeft: "auto" }}>·</span><span style={{ fontSize: "11px", fontFamily: "'Space Mono',monospace", color: "#3A3A5A" }}>{event.name}</span></>
                 )}
               </>
             )}
@@ -862,6 +1115,10 @@ export default function SonaAgent() {
           {isDashboard ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
               <DashboardTab event={event} sentVendorIds={sentVendorIds} />
+            </div>
+          ) : isGuests ? (
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              <GuestsTab />
             </div>
           ) : isVendors && vendorView === "search" ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
