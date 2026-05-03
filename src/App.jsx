@@ -255,6 +255,9 @@ function GuestsTab() {
   const [scrapingFor, setScrapingFor] = useState(null);
   const [selectedGuest, setSelectedGuest] = useState(null);
   const [scrapeStatus, setScrapeStatus] = useState({});
+  const [pasteModal, setPasteModal] = useState(null); // { guest }
+  const [pasteText, setPasteText] = useState("");
+  const [parsing, setParsing] = useState(false);
 
   useEffect(() => { fetchGuests(); }, []);
 
@@ -268,139 +271,35 @@ function GuestsTab() {
     finally { setLoading(false); }
   }
 
-  async function scrapeLinkedIn(guest) {
-    if (!guest.linkedin_url) return;
-    setScrapingFor(guest.id);
-    setScrapeStatus(s => ({ ...s, [guest.id]: "scraping" }));
-
-    // Open LinkedIn in a new tab so user is logged in
+  function openScrapeModal(guest) {
     window.open(guest.linkedin_url, "_blank");
+    setPasteText("");
+    setPasteModal(guest);
+  }
 
+  async function parseAndSave() {
+    if (!pasteText.trim() || !pasteModal) return;
+    setParsing(true);
     try {
-      // Use Claude API to fetch and parse the LinkedIn profile
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
-          messages: [{
-            role: "user",
-            content: `Fetch and parse this LinkedIn profile: ${guest.linkedin_url}
-
-Extract and return ONLY a JSON object with these fields:
-{
-  "full_name": "string",
-  "headline": "string",
-  "current_role": "string",
-  "current_company": "string",
-  "location": "string",
-  "summary": "2-3 sentence summary of who they are and what they do",
-  "experiences": [{"title": "string", "company": "string", "duration": "string"}],
-  "education": [{"school": "string", "degree": "string"}],
-  "skills": ["string"],
-  "connection_count": number or null
-}
-
-Return ONLY the JSON, no explanation, no markdown backticks.`
-          }],
-        }),
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: `Parse this LinkedIn profile text and return ONLY a JSON object:\n\nLINKEDIN TEXT:\n${pasteText.slice(0, 8000)}\n\nJSON fields: full_name, headline, current_role, current_company, location, summary (2-3 sentences), experiences (array of {title,company,duration}), education (array of {school,degree}), skills (array), connection_count (null). Return ONLY the JSON.` }] }),
       });
-
       const data = await response.json();
-      console.log("[scrape] Claude raw response:", JSON.stringify(data, null, 2));
-
-      // Handle multi-turn tool use — if Claude used web_search, we need to
-      // send the tool results back and get the final text response
-      let finalData = data;
-      if (data.stop_reason === "tool_use") {
-        const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
-        const toolResults = toolUseBlocks.map(b => ({
-          type: "tool_result",
-          tool_use_id: b.id,
-          content: b.input?.query ? `Search completed for: ${b.input.query}` : "Search completed",
-        }));
-
-        // Send tool results back to get final response
-        const response2 = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true",
-          },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
-            tools: [{ type: "web_search_20250305", name: "web_search" }],
-            messages: [
-              { role: "user", content: `Fetch and parse this LinkedIn profile: ${guest.linkedin_url}\n\nExtract and return ONLY a JSON object with these fields:\n{\n  "full_name": "string",\n  "headline": "string",\n  "current_role": "string",\n  "current_company": "string",\n  "location": "string",\n  "summary": "2-3 sentence summary",\n  "experiences": [{"title": "string", "company": "string", "duration": "string"}],\n  "education": [{"school": "string", "degree": "string"}],\n  "skills": ["string"],\n  "connection_count": null\n}\nReturn ONLY the JSON.` },
-              { role: "assistant", content: data.content },
-              { role: "user", content: toolResults },
-            ],
-          }),
-        });
-        finalData = await response2.json();
-        console.log("[scrape] Claude follow-up response:", JSON.stringify(finalData, null, 2));
-      }
-
-      // Extract text from response
+      const text = data.content?.[0]?.text || "";
       let profileJson = null;
-      for (const block of finalData.content || []) {
-        if (block.type === "text" && block.text) {
-          try {
-            const clean = block.text.replace(/```json|```/g, "").trim();
-            profileJson = JSON.parse(clean);
-            break;
-          } catch {
-            const match = block.text.match(/\{[\s\S]+\}/);
-            if (match) {
-              try { profileJson = JSON.parse(match[0]); break; } catch {}
-            }
-          }
-        }
-      }
-      console.log("[scrape] Parsed profile:", profileJson);
-
+      try { profileJson = JSON.parse(text.replace(/```json|```/g, "").trim()); } catch { const m = text.match(/\{[\s\S]+\}/); if (m) try { profileJson = JSON.parse(m[0]); } catch {} }
       if (profileJson) {
-        // Save to Supabase via Railway
-        const patchResp = await fetch(`${RAILWAY_URL}/guests/${encodeURIComponent(guest.phone)}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            linkedin_data: profileJson,
-            name: profileJson.full_name || guest.name,
-          }),
-        });
-
-        if (patchResp.ok) {
-          setScrapeStatus(s => ({ ...s, [guest.id]: "done" }));
-          // Update local state
-          setGuests(prev => prev.map(g => g.id === guest.id ? {
-            ...g,
-            linkedin_data: profileJson,
-            name: profileJson.full_name || g.name,
-          } : g));
-        } else {
-          setScrapeStatus(s => ({ ...s, [guest.id]: "error" }));
-        }
-      } else {
-        setScrapeStatus(s => ({ ...s, [guest.id]: "error" }));
-      }
-    } catch (e) {
-      console.error(e);
-      setScrapeStatus(s => ({ ...s, [guest.id]: "error" }));
-    } finally {
-      setScrapingFor(null);
-    }
+        const patchResp = await fetch(`${RAILWAY_URL}/guests/${encodeURIComponent(pasteModal.phone)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ linkedin_data: profileJson, name: profileJson.full_name || pasteModal.name }) });
+        if (patchResp.ok) { setScrapeStatus(s => ({ ...s, [pasteModal.id]: "done" })); setGuests(prev => prev.map(g => g.id === pasteModal.id ? { ...g, linkedin_data: profileJson, name: profileJson.full_name || g.name } : g)); setPasteModal(null); setPasteText(""); }
+        else alert("Failed to save to database.");
+      } else alert("Could not parse profile — try selecting more text.");
+    } catch (e) { alert("Error: " + e.message); }
+    finally { setParsing(false); }
   }
+
+
 
   const rsvpColors = {
     confirmed: { bg: "#A8FF3E18", border: "#A8FF3E44", text: "#A8FF3E" },
@@ -537,14 +436,14 @@ Return ONLY the JSON, no explanation, no markdown backticks.`
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓ SCRAPED</div>
                       <button
-                        onClick={() => scrapeLinkedIn(guest)}
+                        onClick={() => openScrapeModal(guest)}
                         disabled={isScrapingThis}
                         style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 6px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}
                       >↺</button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => scrapeLinkedIn(guest)}
+                      onClick={() => openScrapeModal(guest)}
                       disabled={isScrapingThis}
                       style={{
                         background: isScrapingThis ? "#0A0A18" : status === "error" ? "#FF3E9A11" : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
@@ -649,7 +548,7 @@ Return ONLY the JSON, no explanation, no markdown backticks.`
                 <div style={{ fontSize: "12px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", marginBottom: "12px" }}>NO LINKEDIN DATA YET</div>
                 {selectedGuest.linkedin_url && (
                   <button
-                    onClick={() => { scrapeLinkedIn(selectedGuest); setSelectedGuest(null); }}
+                    onClick={() => { openScrapeModal(selectedGuest); setSelectedGuest(null); }}
                     style={{ background: "linear-gradient(135deg, #00D4FF, #0088AA)", border: "none", borderRadius: "10px", padding: "10px 24px", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}
                   >
                     ⬇ SCRAPE NOW
@@ -682,6 +581,44 @@ Return ONLY the JSON, no explanation, no markdown backticks.`
                 VIEW ON LINKEDIN ↗
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Paste modal */}
+      {pasteModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }}
+          onClick={() => !parsing && setPasteModal(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "20px", width: "580px", padding: "28px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", letterSpacing: "0.1em", marginBottom: "6px" }}>PASTE LINKEDIN PROFILE</div>
+                <div style={{ fontSize: "16px", fontWeight: 600, color: "#E8E8F0" }}>{pasteModal.linkedin_url?.split("/in/")[1]?.replace("/", "") || "LinkedIn Profile"}</div>
+              </div>
+              {!parsing && <button onClick={() => setPasteModal(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>}
+            </div>
+            <div style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "14px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FFB800", marginBottom: "10px" }}>HOW TO DO THIS</div>
+              {["1. LinkedIn just opened in a new tab — go to it", "2. Press Cmd+A to select all text on the page", "3. Press Cmd+C to copy", "4. Come back here and paste below (Cmd+V)"].map((step, i) => (
+                <div key={i} style={{ fontSize: "12px", color: "#8888AA", marginBottom: "4px" }}>{step}</div>
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "8px" }}>
+                PASTE HERE {pasteText.length > 0 ? `— ${pasteText.length.toLocaleString()} chars ✓` : "— waiting..."}
+              </div>
+              <textarea value={pasteText} onChange={e => setPasteText(e.target.value)}
+                placeholder="Paste LinkedIn page text here..." rows={6} disabled={parsing} autoFocus
+                style={{ width: "100%", background: "#0F0F1A", border: `1px solid ${pasteText.length > 100 ? "#A8FF3E44" : "#1A1A2E"}`, borderRadius: "10px", padding: "12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "12px", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5, transition: "border-color 0.2s" }} />
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={parseAndSave} disabled={pasteText.length < 50 || parsing}
+                style={{ flex: 1, background: pasteText.length >= 50 && !parsing ? "linear-gradient(135deg, #A8FF3E, #4ADE80)" : "#1A1A2E", border: "none", borderRadius: "10px", padding: "13px", color: pasteText.length >= 50 && !parsing ? "#07070F" : "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "12px", cursor: pasteText.length >= 50 && !parsing ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {parsing ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #0A0A18", borderTopColor: "#07070F", display: "inline-block", animation: "spin 0.8s linear infinite" }} />PARSING...</> : "✓ PARSE & SAVE"}
+              </button>
+              {!parsing && <button onClick={() => setPasteModal(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "10px", padding: "13px 18px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>CANCEL</button>}
+            </div>
           </div>
         </div>
       )}
