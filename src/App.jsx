@@ -320,7 +320,8 @@ function GuestsTab() {
         if (resp.ok) {
           const data = await resp.json();
           const text = data.output?.[0]?.content?.[0]?.text || "";
-          console.log("[scrape] OpenClaw response:", text.slice(0, 300));
+          console.log("[scrape] OpenClaw FULL response:", text);
+          alert("[DEBUG] OpenClaw said: " + text.slice(0, 500));
 
           let profileJson = null;
           try {
