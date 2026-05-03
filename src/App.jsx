@@ -314,17 +314,52 @@ Return ONLY the JSON, no explanation, no markdown backticks.`
       });
 
       const data = await response.json();
+      console.log("[scrape] Claude raw response:", JSON.stringify(data, null, 2));
 
-      // Extract text from response — may be after tool use blocks
+      // Handle multi-turn tool use — if Claude used web_search, we need to
+      // send the tool results back and get the final text response
+      let finalData = data;
+      if (data.stop_reason === "tool_use") {
+        const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
+        const toolResults = toolUseBlocks.map(b => ({
+          type: "tool_result",
+          tool_use_id: b.id,
+          content: b.input?.query ? `Search completed for: ${b.input.query}` : "Search completed",
+        }));
+
+        // Send tool results back to get final response
+        const response2 = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1000,
+            tools: [{ type: "web_search_20250305", name: "web_search" }],
+            messages: [
+              { role: "user", content: `Fetch and parse this LinkedIn profile: ${guest.linkedin_url}\n\nExtract and return ONLY a JSON object with these fields:\n{\n  "full_name": "string",\n  "headline": "string",\n  "current_role": "string",\n  "current_company": "string",\n  "location": "string",\n  "summary": "2-3 sentence summary",\n  "experiences": [{"title": "string", "company": "string", "duration": "string"}],\n  "education": [{"school": "string", "degree": "string"}],\n  "skills": ["string"],\n  "connection_count": null\n}\nReturn ONLY the JSON.` },
+              { role: "assistant", content: data.content },
+              { role: "user", content: toolResults },
+            ],
+          }),
+        });
+        finalData = await response2.json();
+        console.log("[scrape] Claude follow-up response:", JSON.stringify(finalData, null, 2));
+      }
+
+      // Extract text from response
       let profileJson = null;
-      for (const block of data.content || []) {
+      for (const block of finalData.content || []) {
         if (block.type === "text" && block.text) {
           try {
             const clean = block.text.replace(/```json|```/g, "").trim();
             profileJson = JSON.parse(clean);
             break;
           } catch {
-            // Try to find JSON in the text
             const match = block.text.match(/\{[\s\S]+\}/);
             if (match) {
               try { profileJson = JSON.parse(match[0]); break; } catch {}
@@ -332,6 +367,7 @@ Return ONLY the JSON, no explanation, no markdown backticks.`
           }
         }
       }
+      console.log("[scrape] Parsed profile:", profileJson);
 
       if (profileJson) {
         // Save to Supabase via Railway
