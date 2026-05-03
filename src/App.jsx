@@ -274,6 +274,7 @@ function GuestsTab() {
   const [selectedGuest, setSelectedGuest] = useState(null);
   const [scrapeStatus, setScrapeStatus] = useState({});
   const [pasteModal, setPasteModal] = useState(null); // { guest }
+  const [relayModal, setRelayModal] = useState(null); // { guest }
   const [pasteText, setPasteText] = useState("");
   const [parsing, setParsing] = useState(false);
 
@@ -291,7 +292,13 @@ function GuestsTab() {
 
   async function scrapeGuest(guest) {
     if (!guest.linkedin_url) return;
+    // Show relay setup modal first — user must attach relay before scraping
+    setRelayModal(guest);
+  }
+
+  async function runOpenClawScrape(guest) {
     setScrapeStatus(s => ({ ...s, [guest.id]: "scraping" }));
+    setRelayModal(null);
 
     // Try OpenClaw browser agent first
     if (OPENCLAW_TOKEN) {
@@ -363,6 +370,11 @@ function GuestsTab() {
     window.open(guest.linkedin_url, "_blank");
     setPasteText("");
     setPasteModal(guest);
+  }
+
+  async function openRelayAndScrape(guest) {
+    // Open LinkedIn in new tab, then wait for user to attach relay
+    window.open(guest.linkedin_url, "_blank");
   }
 
   async function parseAndSave() {
@@ -666,6 +678,65 @@ function GuestsTab() {
                 VIEW ON LINKEDIN ↗
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Relay setup modal */}
+      {relayModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }}
+          onClick={() => setRelayModal(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "20px", width: "520px", padding: "28px", display: "flex", flexDirection: "column", gap: "16px" }}>
+
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", letterSpacing: "0.1em", marginBottom: "6px" }}>🦞 OPENCLAW BROWSER SCRAPE</div>
+                <div style={{ fontSize: "16px", fontWeight: 600, color: "#E8E8F0" }}>{relayModal.linkedin_url?.split("/in/")[1]?.replace("/", "") || "LinkedIn Profile"}</div>
+              </div>
+              <button onClick={() => setRelayModal(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+
+            {/* Steps */}
+            <div style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FFB800", marginBottom: "4px" }}>DO THIS FIRST</div>
+              {[
+                { n: "1", text: "Click below to open the LinkedIn profile in Chrome", done: false },
+                { n: "2", text: "Click the OpenClaw Browser Relay icon in the Chrome toolbar", done: false },
+                { n: "3", text: "Make sure the badge turns ON (green)", done: false },
+                { n: "4", text: "Come back here and click Scrape Now", done: false },
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                  <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#A8FF3E22", border: "1px solid #A8FF3E44", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E" }}>{step.n}</span>
+                  </div>
+                  <span style={{ fontSize: "13px", color: "#8888AA", lineHeight: 1.5 }}>{step.text}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Buttons */}
+            <button
+              onClick={() => openRelayAndScrape(relayModal)}
+              style={{ background: "#0F0F1A", border: "1px solid #00D4FF44", borderRadius: "10px", padding: "12px", color: "#00D4FF", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}
+            >
+              1. OPEN LINKEDIN IN CHROME ↗
+            </button>
+
+            <button
+              onClick={() => runOpenClawScrape(relayModal)}
+              style={{ background: "linear-gradient(135deg, #A8FF3E, #4ADE80)", border: "none", borderRadius: "10px", padding: "14px", color: "#07070F", fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em", cursor: "pointer", fontWeight: 700 }}
+            >
+              2. RELAY IS ON — SCRAPE NOW 🦞
+            </button>
+
+            <button
+              onClick={() => { setRelayModal(null); window.open(relayModal.linkedin_url, "_blank"); setPasteText(""); setPasteModal(relayModal); }}
+              style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "10px", padding: "10px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}
+            >
+              USE PASTE METHOD INSTEAD
+            </button>
           </div>
         </div>
       )}
