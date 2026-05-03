@@ -271,8 +271,37 @@ function GuestsTab() {
     finally { setLoading(false); }
   }
 
-  function openScrapeModal(guest) {
+  async function scrapeGuest(guest) {
+    if (!guest.linkedin_url) return;
+    setScrapeStatus(s => ({ ...s, [guest.id]: "scraping" }));
+
+    try {
+      // Try NinjaPear first
+      const resp = await fetch(`${RAILWAY_URL}/admin/enrich-guest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: guest.phone, linkedin_url: guest.linkedin_url }),
+      });
+      const data = await resp.json();
+
+      if (data.status === "enriched" && data.profile) {
+        // NinjaPear succeeded
+        setScrapeStatus(s => ({ ...s, [guest.id]: "done" }));
+        setGuests(prev => prev.map(g => g.id === guest.id ? {
+          ...g, linkedin_data: data.profile, name: data.name || g.name,
+        } : g));
+        return;
+      }
+
+      // NinjaPear failed or profile private — fall back to paste modal
+      console.log("[scrape] NinjaPear failed, falling back to paste:", data.error);
+    } catch (e) {
+      console.log("[scrape] NinjaPear error, falling back to paste:", e.message);
+    }
+
+    // Open LinkedIn tab + show paste modal as fallback
     window.open(guest.linkedin_url, "_blank");
+    setScrapeStatus(s => ({ ...s, [guest.id]: undefined }));
     setPasteText("");
     setPasteModal(guest);
   }
@@ -310,7 +339,7 @@ function GuestsTab() {
   const totalGuests = guests.length;
   const confirmed = guests.filter(g => g.rsvp_status === "confirmed").length;
   const pending = guests.filter(g => g.rsvp_status === "pending").length;
-  const scraped = guests.filter(g => g.linkedin_data).length;
+  const scraped = guests.filter(g => g.linkedin_data && !g.linkedin_data.error).length;
 
   return (
     <div style={{ padding: "28px", overflowY: "auto", height: "100%" }}>
@@ -361,9 +390,9 @@ function GuestsTab() {
         ) : (
           guests.map((guest, idx) => {
             const hasLinkedIn = !!guest.linkedin_url;
-            const hasData = !!guest.linkedin_data;
+            const hasData = !!guest.linkedin_data && !guest.linkedin_data.error;
             const status = scrapeStatus[guest.id];
-            const isScrapingThis = scrapingFor === guest.id;
+            const isScrapingThis = status === "scraping";
             const rsvp = guest.rsvp_status || "pending";
             const rc = rsvpColors[rsvp] || rsvpColors.pending;
             const phone = guest.phone?.replace("whatsapp:", "") || "—";
@@ -436,14 +465,14 @@ function GuestsTab() {
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓ SCRAPED</div>
                       <button
-                        onClick={() => openScrapeModal(guest)}
+                        onClick={() => scrapeGuest(guest)}
                         disabled={isScrapingThis}
                         style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 6px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}
                       >↺</button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => openScrapeModal(guest)}
+                      onClick={() => scrapeGuest(guest)}
                       disabled={isScrapingThis}
                       style={{
                         background: isScrapingThis ? "#0A0A18" : status === "error" ? "#FF3E9A11" : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
@@ -548,7 +577,7 @@ function GuestsTab() {
                 <div style={{ fontSize: "12px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", marginBottom: "12px" }}>NO LINKEDIN DATA YET</div>
                 {selectedGuest.linkedin_url && (
                   <button
-                    onClick={() => { openScrapeModal(selectedGuest); setSelectedGuest(null); }}
+                    onClick={() => { scrapeGuest(selectedGuest); setSelectedGuest(null); }}
                     style={{ background: "linear-gradient(135deg, #00D4FF, #0088AA)", border: "none", borderRadius: "10px", padding: "10px 24px", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}
                   >
                     ⬇ SCRAPE NOW
