@@ -4,7 +4,7 @@ const RAILWAY_URL = "https://sona-production-529e.up.railway.app";
 const OPENCLAW_URL = "http://127.0.0.1:18789";
 const OPENCLAW_TOKEN = import.meta.env.VITE_OPENCLAW_TOKEN || "";
 
-const LINKEDIN_SCRAPE_PROMPT = (linkedin_url) => `Go to ${linkedin_url} in my browser. Scroll to the bottom of the page incrementally. Click all "Show all" and "Show more" buttons you find for Experience, Education, and Skills sections. Then extract and return the complete profile as a single JSON object with these exact fields:
+const LINKEDIN_SCRAPE_PROMPT = (linkedin_url) => `The LinkedIn profile ${linkedin_url} is already open in my Chrome browser with the relay attached. Do NOT navigate to it or open a new tab. Just use the current tab already showing that profile. Scroll to the bottom of the page incrementally. Click all "Show all" and "Show more" buttons you find for Experience, Education, and Skills sections. Then extract and return the complete profile as a single JSON object with these exact fields:
 {
   "full_name": "string",
   "headline": "string", 
