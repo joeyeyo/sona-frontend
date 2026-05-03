@@ -1,6 +1,24 @@
 import { useState, useRef, useEffect } from "react";
 
 const RAILWAY_URL = "https://sona-production-529e.up.railway.app";
+const OPENCLAW_URL = "http://127.0.0.1:18789";
+const OPENCLAW_TOKEN = import.meta.env.VITE_OPENCLAW_TOKEN || "";
+
+const LINKEDIN_SCRAPE_PROMPT = (linkedin_url) => `Go to ${linkedin_url} in my browser. Scroll to the bottom of the page incrementally. Click all "Show all" and "Show more" buttons you find for Experience, Education, and Skills sections. Then extract and return the complete profile as a single JSON object with these exact fields:
+{
+  "full_name": "string",
+  "headline": "string", 
+  "current_role": "string",
+  "current_company": "string",
+  "location": "string",
+  "summary": "string or null",
+  "experiences": [{"title": "string", "company": "string", "dates": "string", "duration": "string", "description": "string or null"}],
+  "education": [{"school": "string", "degree": "string or null", "field": "string or null", "description": "string or null"}],
+  "skills": ["string"],
+  "publications": ["string"],
+  "connection_count": null
+}
+Return ONLY the JSON object, no explanation, no markdown backticks.`;
 
 const WORKSTREAMS = [
   { id: "dashboard", label: "Dashboard", icon: "📊", color: "#A8FF3E" },
@@ -275,33 +293,74 @@ function GuestsTab() {
     if (!guest.linkedin_url) return;
     setScrapeStatus(s => ({ ...s, [guest.id]: "scraping" }));
 
-    try {
-      // Try NinjaPear first
-      const resp = await fetch(`${RAILWAY_URL}/admin/enrich-guest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: guest.phone, linkedin_url: guest.linkedin_url }),
-      });
-      const data = await resp.json();
+    // Try OpenClaw browser agent first
+    if (OPENCLAW_TOKEN) {
+      try {
+        console.log("[scrape] Trying OpenClaw for", guest.linkedin_url);
+        const resp = await fetch(`${OPENCLAW_URL}/v1/responses`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+            "x-openclaw-agent-id": "main",
+          },
+          body: JSON.stringify({
+            model: "openclaw",
+            input: LINKEDIN_SCRAPE_PROMPT(guest.linkedin_url),
+          }),
+        });
 
-      if (data.status === "enriched" && data.profile) {
-        // NinjaPear succeeded
-        setScrapeStatus(s => ({ ...s, [guest.id]: "done" }));
-        setGuests(prev => prev.map(g => g.id === guest.id ? {
-          ...g, linkedin_data: data.profile, name: data.name || g.name,
-        } : g));
-        return;
+        if (resp.ok) {
+          const data = await resp.json();
+          const text = data.output?.[0]?.content?.[0]?.text || "";
+          console.log("[scrape] OpenClaw response:", text.slice(0, 300));
+
+          let profileJson = null;
+          try {
+            const clean = text.replace(/```json|```/g, "").trim();
+            // Find JSON object in response
+            const match = clean.match(/\{[\s\S]+\}/);
+            if (match) profileJson = JSON.parse(match[0]);
+          } catch (e) {
+            console.log("[scrape] JSON parse error:", e.message);
+          }
+
+          if (profileJson && profileJson.full_name) {
+            // Save to Supabase via Railway
+            const patchResp = await fetch(`${RAILWAY_URL}/guests/${encodeURIComponent(guest.phone)}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                linkedin_data: profileJson,
+                name: profileJson.full_name,
+              }),
+            });
+
+            if (patchResp.ok) {
+              setScrapeStatus(s => ({ ...s, [guest.id]: "done" }));
+              setGuests(prev => prev.map(g => g.id === guest.id ? {
+                ...g, linkedin_data: profileJson, name: profileJson.full_name,
+              } : g));
+              console.log("[scrape] OpenClaw success:", profileJson.full_name);
+              return;
+            }
+          }
+
+          // OpenClaw returned something but no usable profile
+          // Check if it needs browser relay to be attached
+          if (text.includes("relay") || text.includes("attach") || text.includes("toolbar")) {
+            setScrapeStatus(s => ({ ...s, [guest.id]: "relay" }));
+            return;
+          }
+        }
+      } catch (e) {
+        console.log("[scrape] OpenClaw error:", e.message);
       }
-
-      // NinjaPear failed or profile private — fall back to paste modal
-      console.log("[scrape] NinjaPear failed, falling back to paste:", data.error);
-    } catch (e) {
-      console.log("[scrape] NinjaPear error, falling back to paste:", e.message);
     }
 
-    // Open LinkedIn tab + show paste modal as fallback
-    window.open(guest.linkedin_url, "_blank");
+    // Fall back to paste modal
     setScrapeStatus(s => ({ ...s, [guest.id]: undefined }));
+    window.open(guest.linkedin_url, "_blank");
     setPasteText("");
     setPasteModal(guest);
   }
@@ -461,14 +520,16 @@ function GuestsTab() {
                 <div onClick={e => e.stopPropagation()}>
                   {!hasLinkedIn ? (
                     <div style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>NO URL</div>
-                  ) : hasData && status !== "error" ? (
+                  ) : hasData && status !== "error" && status !== "relay" ? (
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓ SCRAPED</div>
-                      <button
-                        onClick={() => scrapeGuest(guest)}
-                        disabled={isScrapingThis}
-                        style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 6px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}
-                      >↺</button>
+                      <button onClick={() => scrapeGuest(guest)} disabled={isScrapingThis} style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 6px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}>↺</button>
+                    </div>
+                  ) : status === "relay" ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <div style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#FFB800", background: "#FFB80011", border: "1px solid #FFB80033", borderRadius: "6px", padding: "3px 8px", whiteSpace: "nowrap" }}>⚠ ATTACH RELAY</div>
+                      <div style={{ fontSize: "9px", color: "#5A5A7A" }}>Click OpenClaw icon in Chrome</div>
+                      <button onClick={() => scrapeGuest(guest)} style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", background: "transparent", border: "1px solid #00D4FF33", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}>↺ RETRY</button>
                     </div>
                   ) : (
                     <button
@@ -477,21 +538,16 @@ function GuestsTab() {
                       style={{
                         background: isScrapingThis ? "#0A0A18" : status === "error" ? "#FF3E9A11" : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
                         border: `1px solid ${isScrapingThis ? "#1A1A2E" : status === "error" ? "#FF3E9A44" : "#00D4FF44"}`,
-                        borderRadius: "8px",
-                        padding: "6px 12px",
+                        borderRadius: "8px", padding: "6px 12px",
                         color: isScrapingThis ? "#3A3A5A" : status === "error" ? "#FF3E9A" : "#00D4FF",
-                        fontFamily: "'Space Mono', monospace",
-                        fontSize: "10px",
+                        fontFamily: "'Space Mono', monospace", fontSize: "10px",
                         cursor: isScrapingThis ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        whiteSpace: "nowrap",
+                        display: "flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap",
                       }}
                     >
-                      {isScrapingThis ? (
-                        <><span style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />SCRAPING</>
-                      ) : status === "error" ? "✗ RETRY" : "⬇ SCRAPE"}
+                      {isScrapingThis
+                        ? <><span style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />OPENCLAW...</>
+                        : status === "error" ? "✗ RETRY" : "⬇ SCRAPE"}
                     </button>
                   )}
                 </div>
