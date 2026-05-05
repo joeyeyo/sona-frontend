@@ -1,10 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 
 const RAILWAY_URL = "https://sona-production-529e.up.railway.app";
-const OPENCLAW_URL = "http://127.0.0.1:18789";
+const OPENCLAW_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? '/openclaw' : 'http://127.0.0.1:18789';
 const OPENCLAW_TOKEN = import.meta.env.VITE_OPENCLAW_TOKEN || "";
 
-const LINKEDIN_SCRAPE_PROMPT = (_linkedin_url) => `Take a snapshot of the current browser tab (do not navigate anywhere, do not open any new tabs). The tab is already showing a LinkedIn profile. Scroll down incrementally through the entire page to lazy-load all sections. Click any "Show all" or "Show more" buttons you find for Experience, Education, and Skills. Once you have scrolled to the bottom and expanded all sections, extract the profile data and return it as a single JSON object with these exact fields:
+const LINKEDIN_SCRAPE_PROMPT = (linkedin_url) => `Use your browser tools (NOT web fetch or web search) to open ${linkedin_url} in Chrome. You must use the browser relay/CDP to control the actual Chrome browser. Once the page is loaded in Chrome:
+1. Scroll down 10 times to lazy-load all sections
+2. Click every button that says "Show all experiences", "Show all education", "Show more", "See all skills"
+3. Take a snapshot after each scroll to verify content is loading
+4. Extract ALL visible text content for experiences, education, and skills
+
+Return ONLY a JSON object with these exact fields:
 {
   "full_name": "string",
   "headline": "string", 
@@ -275,6 +281,10 @@ function GuestsTab() {
   const [scrapeStatus, setScrapeStatus] = useState({});
   const [pasteModal, setPasteModal] = useState(null); // { guest }
   const [relayModal, setRelayModal] = useState(null); // { guest }
+  const [jsonImportModal, setJsonImportModal] = useState(null); // { guest }
+  const [jsonImportText, setJsonImportText] = useState("");
+  const [jsonImportError, setJsonImportError] = useState("");
+  const [jsonImporting, setJsonImporting] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [parsing, setParsing] = useState(false);
 
@@ -320,8 +330,7 @@ function GuestsTab() {
         if (resp.ok) {
           const data = await resp.json();
           const text = data.output?.[0]?.content?.[0]?.text || "";
-          console.log("[scrape] OpenClaw FULL response:", text);
-          alert("[DEBUG] OpenClaw said: " + text.slice(0, 500));
+          console.log("[scrape] OpenClaw FULL text:", text);
 
           let profileJson = null;
           try {
@@ -374,8 +383,8 @@ function GuestsTab() {
   }
 
   async function openRelayAndScrape(guest) {
-    // Open LinkedIn in new tab, then wait for user to attach relay
-    window.open(guest.linkedin_url, "_blank");
+    // Don't open tab — OpenClaw will navigate there itself
+    // Nothing to do here
   }
 
   async function parseAndSave() {
@@ -679,6 +688,148 @@ function GuestsTab() {
                 VIEW ON LINKEDIN ↗
               </a>
             )}
+
+            {/* Import JSON from OpenClaw */}
+            <button
+              onClick={() => { setJsonImportText(""); setJsonImportError(""); setJsonImportModal(selectedGuest); setSelectedGuest(null); }}
+              style={{ display: "block", width: "100%", marginTop: "10px", textAlign: "center", fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", padding: "10px", border: "1px solid #A8FF3E33", borderRadius: "10px", cursor: "pointer" }}
+            >
+              📋 IMPORT JSON FROM OPENCLAW
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* JSON Import Modal */}
+      {jsonImportModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }}
+          onClick={() => !jsonImporting && setJsonImportModal(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "20px", width: "600px", maxHeight: "85vh", overflowY: "auto", padding: "28px", display: "flex", flexDirection: "column", gap: "16px" }}>
+
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", letterSpacing: "0.1em", marginBottom: "6px" }}>📋 IMPORT LINKEDIN JSON</div>
+                <div style={{ fontSize: "16px", fontWeight: 600, color: "#E8E8F0" }}>{jsonImportModal.name || jsonImportModal.phone}</div>
+              </div>
+              {!jsonImporting && <button onClick={() => setJsonImportModal(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>}
+            </div>
+
+            {/* Instructions */}
+            <div style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "14px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FFB800", marginBottom: "10px" }}>HOW TO GET THE JSON</div>
+              <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.7 }}>
+                1. Open OpenClaw console at <span style={{ color: "#00D4FF", fontFamily: "'Space Mono', monospace" }}>127.0.0.1:18789</span><br/>
+                2. Make sure Browser Relay is ON on the LinkedIn tab<br/>
+                3. Type: <span style={{ color: "#A8FF3E", fontFamily: "'Space Mono', monospace", fontSize: "11px" }}>Go to {jsonImportModal.linkedin_url} in my browser, scroll to the bottom, click all Show More and Show All buttons, extract full profile as JSON with fields: full_name, headline, current_role, current_company, location, summary, experiences, education, skills, publications</span><br/>
+                4. Copy the JSON result and paste it below
+              </div>
+            </div>
+
+            {/* Quick copy prompt button */}
+            <button
+              onClick={() => {
+                const prompt = `Go to ${jsonImportModal.linkedin_url} in my browser, scroll to the bottom, click all Show More and Show All buttons, extract full profile as JSON with fields: full_name, headline, current_role, current_company, location, summary, experiences (array with title/company/dates/duration/description), education (array with school/degree/field), skills (array), publications (array). Return ONLY the JSON.`;
+                navigator.clipboard.writeText(prompt);
+              }}
+              style={{ background: "#0F0F1A", border: "1px solid #A8FF3E33", borderRadius: "10px", padding: "10px", color: "#A8FF3E", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer", textAlign: "left" }}
+            >
+              📋 COPY OPENCLAW PROMPT TO CLIPBOARD
+            </button>
+
+            {/* JSON paste area */}
+            <div>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "8px" }}>
+                PASTE JSON HERE {jsonImportText.length > 0 ? `— ${jsonImportText.length.toLocaleString()} chars` : ""}
+              </div>
+              <textarea
+                value={jsonImportText}
+                onChange={e => { setJsonImportText(e.target.value); setJsonImportError(""); }}
+                placeholder='{"full_name": "...", "experiences": [...], ...}'
+                rows={8}
+                disabled={jsonImporting}
+                autoFocus
+                style={{
+                  width: "100%", background: "#0F0F1A",
+                  border: `1px solid ${jsonImportError ? "#FF3E9A44" : jsonImportText.length > 50 ? "#A8FF3E44" : "#1A1A2E"}`,
+                  borderRadius: "10px", padding: "12px", color: "#E8E8F0",
+                  fontFamily: "'Space Mono', monospace", fontSize: "11px",
+                  resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.5,
+                }}
+              />
+              {jsonImportError && <div style={{ fontSize: "11px", color: "#FF3E9A", marginTop: "6px", fontFamily: "'Space Mono', monospace" }}>{jsonImportError}</div>}
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={async () => {
+                  if (!jsonImportText.trim() || jsonImporting) return;
+                  setJsonImporting(true);
+                  setJsonImportError("");
+                  try {
+                    // Parse and validate JSON
+                    let profile;
+                    try {
+                      const clean = jsonImportText.replace(/```json|```/g, "").trim();
+                      // Try to find JSON object in text
+                      const match = clean.match(/\{[\s\S]+\}/);
+                      profile = JSON.parse(match ? match[0] : clean);
+                    } catch {
+                      setJsonImportError("Invalid JSON — make sure you copied the full JSON object from OpenClaw");
+                      setJsonImporting(false);
+                      return;
+                    }
+                    if (!profile.full_name) {
+                      setJsonImportError("JSON is missing full_name — make sure OpenClaw returned a complete profile");
+                      setJsonImporting(false);
+                      return;
+                    }
+                    // Save to Supabase via Railway
+                    const patchResp = await fetch(`${RAILWAY_URL}/guests/${encodeURIComponent(jsonImportModal.phone)}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ linkedin_data: profile, name: profile.full_name }),
+                    });
+                    if (patchResp.ok) {
+                      setGuests(prev => prev.map(g => g.id === jsonImportModal.id ? {
+                        ...g, linkedin_data: profile, name: profile.full_name,
+                      } : g));
+                      setScrapeStatus(s => ({ ...s, [jsonImportModal.id]: "done" }));
+                      setJsonImportModal(null);
+                      setJsonImportText("");
+                    } else {
+                      setJsonImportError("Failed to save to database — check Railway logs");
+                    }
+                  } catch (e) {
+                    setJsonImportError("Error: " + e.message);
+                  } finally {
+                    setJsonImporting(false);
+                  }
+                }}
+                disabled={jsonImportText.length < 10 || jsonImporting}
+                style={{
+                  flex: 1,
+                  background: jsonImportText.length >= 10 && !jsonImporting ? "linear-gradient(135deg, #A8FF3E, #4ADE80)" : "#1A1A2E",
+                  border: "none", borderRadius: "10px", padding: "13px",
+                  color: jsonImportText.length >= 10 && !jsonImporting ? "#07070F" : "#3A3A5A",
+                  fontFamily: "'Space Mono', monospace", fontSize: "12px",
+                  cursor: jsonImportText.length >= 10 && !jsonImporting ? "pointer" : "not-allowed",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                }}
+              >
+                {jsonImporting
+                  ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #0A0A18", borderTopColor: "#07070F", display: "inline-block", animation: "spin 0.8s linear infinite" }} />SAVING...</>
+                  : "✓ IMPORT & SAVE PROFILE"}
+              </button>
+              {!jsonImporting && (
+                <button onClick={() => setJsonImportModal(null)}
+                  style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "10px", padding: "13px 18px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
+                  CANCEL
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -703,10 +854,8 @@ function GuestsTab() {
             <div style={{ background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FFB800", marginBottom: "4px" }}>DO THIS FIRST</div>
               {[
-                { n: "1", text: "Click below to open the LinkedIn profile in Chrome", done: false },
-                { n: "2", text: "Click the OpenClaw Browser Relay icon in the Chrome toolbar", done: false },
-                { n: "3", text: "Make sure the badge turns ON (green)", done: false },
-                { n: "4", text: "Come back here and click Scrape Now", done: false },
+                { n: "1", text: "Make sure the OpenClaw Browser Relay icon is ON (green) in Chrome toolbar" },
+                { n: "2", text: "Click Scrape Now — OpenClaw will open LinkedIn, scroll it, and extract everything automatically" },
               ].map((step, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                   <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#A8FF3E22", border: "1px solid #A8FF3E44", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -719,17 +868,10 @@ function GuestsTab() {
 
             {/* Buttons */}
             <button
-              onClick={() => openRelayAndScrape(relayModal)}
-              style={{ background: "#0F0F1A", border: "1px solid #00D4FF44", borderRadius: "10px", padding: "12px", color: "#00D4FF", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}
-            >
-              1. OPEN LINKEDIN IN CHROME ↗
-            </button>
-
-            <button
               onClick={() => runOpenClawScrape(relayModal)}
               style={{ background: "linear-gradient(135deg, #A8FF3E, #4ADE80)", border: "none", borderRadius: "10px", padding: "14px", color: "#07070F", fontFamily: "'Space Mono', monospace", fontSize: "12px", letterSpacing: "0.08em", cursor: "pointer", fontWeight: 700 }}
             >
-              2. RELAY IS ON — SCRAPE NOW 🦞
+              🦞 SCRAPE WITH OPENCLAW
             </button>
 
             <button
