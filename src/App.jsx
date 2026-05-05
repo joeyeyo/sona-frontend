@@ -668,9 +668,21 @@ function GuestsTab() {
                 {selectedGuest.linkedin_data.publications?.length > 0 && (
                   <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
                     <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "10px" }}>PUBLICATIONS</div>
-                    {selectedGuest.linkedin_data.publications.map((pub, i) => (
-                      <div key={i} style={{ fontSize: "12px", color: "#8888AA", marginBottom: "6px", lineHeight: 1.5 }}>📄 {pub}</div>
-                    ))}
+                    {selectedGuest.linkedin_data.publications.map((pub, i) => {
+                      const title = typeof pub === "string" ? pub : (pub?.name || pub?.title || pub?.description || JSON.stringify(pub));
+                      const url = typeof pub === "object" ? pub?.url : null;
+                      const publisher = typeof pub === "object" ? pub?.publisher : null;
+                      return (
+                        <div key={i} style={{ marginBottom: "10px" }}>
+                          {url ? (
+                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", color: "#00D4FF", textDecoration: "none", lineHeight: 1.5 }}>📄 {title}</a>
+                          ) : (
+                            <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.5 }}>📄 {title}</div>
+                          )}
+                          {publisher && <div style={{ fontSize: "11px", color: "#5A5A7A", marginTop: "2px" }}>{publisher}</div>}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
