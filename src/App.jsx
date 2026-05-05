@@ -452,8 +452,8 @@ function GuestsTab() {
       {/* Guest table */}
       <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", overflow: "hidden" }}>
         {/* Table header */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 140px", gap: "0", padding: "12px 20px", borderBottom: "1px solid #1A1A2E", background: "#07070F" }}>
-          {["NAME / PHONE", "LINKEDIN", "WHAT THEY DO", "MEET", "RSVP", "IMPORT"].map(h => (
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 130px 80px", gap: "0", padding: "12px 20px", borderBottom: "1px solid #1A1A2E", background: "#07070F" }}>
+          {["NAME / PHONE", "LINKEDIN", "WHAT THEY DO", "MEET", "RSVP", "IMPORT", ""].map(h => (
             <div key={h} style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.12em" }}>{h}</div>
           ))}
         </div>
@@ -485,7 +485,7 @@ function GuestsTab() {
                 onClick={() => setSelectedGuest(guest)}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 140px",
+                  gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 130px 80px",
                   gap: "0",
                   padding: "14px 20px",
                   borderBottom: idx < guests.length - 1 ? "1px solid #0F0F1A" : "none",
@@ -567,6 +567,23 @@ function GuestsTab() {
                     </button>
                   )}
                 </div>
+
+                {/* LinkedIn link */}
+                <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center" }}>
+                  {hasLinkedIn ? (
+                    <a
+                      href={guest.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", textDecoration: "none", padding: "4px 8px", border: "1px solid #00D4FF33", borderRadius: "6px", whiteSpace: "nowrap" }}
+                    >
+                      LI ↗
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: "10px", color: "#3A3A5A" }}>—</span>
+                  )}
+                </div>
               </div>
             );
           })
@@ -611,8 +628,8 @@ function GuestsTab() {
               ))}
             </div>
 
-            {/* LinkedIn data */}
-            {selectedGuest.linkedin_data ? (
+            {/* LinkedIn data — full display */}
+            {selectedGuest.linkedin_data && !selectedGuest.linkedin_data.error ? (
               <>
                 {selectedGuest.linkedin_data.summary && (
                   <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
@@ -623,21 +640,45 @@ function GuestsTab() {
 
                 {selectedGuest.linkedin_data.experiences?.length > 0 && (
                   <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
-                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>EXPERIENCE</div>
-                    {selectedGuest.linkedin_data.experiences.slice(0, 3).map((exp, i) => (
-                      <div key={i} style={{ marginBottom: i < 2 ? "10px" : 0 }}>
-                        <div style={{ fontSize: "13px", fontWeight: 500, color: "#E8E8F0" }}>{exp.title}</div>
-                        <div style={{ fontSize: "12px", color: "#5A5A7A" }}>{exp.company} · {exp.duration}</div>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>EXPERIENCE ({selectedGuest.linkedin_data.experiences.length})</div>
+                    {selectedGuest.linkedin_data.experiences.map((exp, i) => (
+                      <div key={i} style={{ marginBottom: i < selectedGuest.linkedin_data.experiences.length - 1 ? "14px" : 0, paddingBottom: i < selectedGuest.linkedin_data.experiences.length - 1 ? "14px" : 0, borderBottom: i < selectedGuest.linkedin_data.experiences.length - 1 ? "1px solid #1A1A2E" : "none" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#E8E8F0" }}>{exp.title}</div>
+                        <div style={{ fontSize: "12px", color: "#00D4FF", marginTop: "2px" }}>{exp.company}</div>
+                        <div style={{ fontSize: "11px", color: "#5A5A7A", marginTop: "2px", fontFamily: "'Space Mono', monospace" }}>{exp.dates}{exp.duration ? ` · ${exp.duration}` : ""}</div>
+                        {exp.description && <div style={{ fontSize: "12px", color: "#6666AA", marginTop: "6px", lineHeight: 1.5 }}>{exp.description}</div>}
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedGuest.linkedin_data.education?.length > 0 && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>EDUCATION</div>
+                    {selectedGuest.linkedin_data.education.map((edu, i) => (
+                      <div key={i} style={{ marginBottom: i < selectedGuest.linkedin_data.education.length - 1 ? "12px" : 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#E8E8F0" }}>{edu.school}</div>
+                        {(edu.degree || edu.field) && <div style={{ fontSize: "12px", color: "#8888AA", marginTop: "2px" }}>{[edu.degree, edu.field].filter(Boolean).join(" · ")}</div>}
+                        {edu.description && <div style={{ fontSize: "11px", color: "#6666AA", marginTop: "4px", lineHeight: 1.5 }}>{edu.description}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedGuest.linkedin_data.publications?.length > 0 && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "10px" }}>PUBLICATIONS</div>
+                    {selectedGuest.linkedin_data.publications.map((pub, i) => (
+                      <div key={i} style={{ fontSize: "12px", color: "#8888AA", marginBottom: "6px", lineHeight: 1.5 }}>📄 {pub}</div>
                     ))}
                   </div>
                 )}
 
                 {selectedGuest.linkedin_data.skills?.length > 0 && (
                   <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
-                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "10px" }}>SKILLS</div>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "10px" }}>SKILLS ({selectedGuest.linkedin_data.skills.length})</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                      {selectedGuest.linkedin_data.skills.slice(0, 10).map((skill, i) => (
+                      {selectedGuest.linkedin_data.skills.map((skill, i) => (
                         <div key={i} style={{ fontSize: "11px", padding: "3px 10px", borderRadius: "20px", background: "#1A1A2E", color: "#8888AA", fontFamily: "'DM Sans', sans-serif" }}>{skill}</div>
                       ))}
                     </div>
@@ -647,14 +688,7 @@ function GuestsTab() {
             ) : (
               <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "20px", textAlign: "center" }}>
                 <div style={{ fontSize: "12px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", marginBottom: "12px" }}>NO LINKEDIN DATA YET</div>
-                {selectedGuest.linkedin_url && (
-                  <button
-                    onClick={() => { scrapeGuest(selectedGuest); setSelectedGuest(null); }}
-                    style={{ background: "linear-gradient(135deg, #00D4FF, #0088AA)", border: "none", borderRadius: "10px", padding: "10px 24px", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}
-                  >
-                    ⬇ SCRAPE NOW
-                  </button>
-                )}
+                <div style={{ fontSize: "12px", color: "#5A5A7A" }}>Use the 📋 IMPORT JSON button in the guest row to add LinkedIn data</div>
               </div>
             )}
 
@@ -676,12 +710,7 @@ function GuestsTab() {
               </div>
             )}
 
-            {selectedGuest.linkedin_url && (
-              <a href={selectedGuest.linkedin_url} target="_blank" rel="noopener noreferrer"
-                style={{ display: "block", marginTop: "16px", textAlign: "center", fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", textDecoration: "none", padding: "10px", border: "1px solid #00D4FF33", borderRadius: "10px" }}>
-                VIEW ON LINKEDIN ↗
-              </a>
-            )}
+
 
             {/* Import JSON from OpenClaw */}
             <button
@@ -1192,7 +1221,7 @@ export default function SonaAgent() {
   const [gmailModal, setGmailModal] = useState(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeWorkstream, setActiveWorkstream] = useState("dashboard");
+  const [activeWorkstream, setActiveWorkstream] = useState("guests");
   const [vendorView, setVendorView] = useState("search");
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
