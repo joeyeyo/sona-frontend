@@ -453,7 +453,7 @@ function GuestsTab() {
       <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", overflow: "hidden" }}>
         {/* Table header */}
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 140px", gap: "0", padding: "12px 20px", borderBottom: "1px solid #1A1A2E", background: "#07070F" }}>
-          {["NAME / PHONE", "LINKEDIN", "WHAT THEY DO", "MEET", "RSVP", "LINKEDIN DATA"].map(h => (
+          {["NAME / PHONE", "LINKEDIN", "WHAT THEY DO", "MEET", "RSVP", "IMPORT"].map(h => (
             <div key={h} style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.12em" }}>{h}</div>
           ))}
         </div>
@@ -538,38 +538,32 @@ function GuestsTab() {
                   </div>
                 </div>
 
-                {/* Scrape button */}
+                {/* Import JSON button */}
                 <div onClick={e => e.stopPropagation()}>
                   {!hasLinkedIn ? (
                     <div style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>NO URL</div>
-                  ) : hasData && status !== "error" && status !== "relay" ? (
+                  ) : hasData ? (
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓ SCRAPED</div>
-                      <button onClick={() => scrapeGuest(guest)} disabled={isScrapingThis} style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 6px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}>↺</button>
-                    </div>
-                  ) : status === "relay" ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <div style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#FFB800", background: "#FFB80011", border: "1px solid #FFB80033", borderRadius: "6px", padding: "3px 8px", whiteSpace: "nowrap" }}>⚠ ATTACH RELAY</div>
-                      <div style={{ fontSize: "9px", color: "#5A5A7A" }}>Click OpenClaw icon in Chrome</div>
-                      <button onClick={() => scrapeGuest(guest)} style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#00D4FF", background: "transparent", border: "1px solid #00D4FF33", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}>↺ RETRY</button>
+                      <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "3px 8px" }}>✓ IMPORTED</div>
+                      <button
+                        onClick={() => { setJsonImportText(""); setJsonImportError(""); setJsonImportModal(guest); }}
+                        style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 6px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}
+                      >↺</button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => scrapeGuest(guest)}
-                      disabled={isScrapingThis}
+                      onClick={() => { setJsonImportText(""); setJsonImportError(""); setJsonImportModal(guest); }}
                       style={{
-                        background: isScrapingThis ? "#0A0A18" : status === "error" ? "#FF3E9A11" : "linear-gradient(135deg, #00D4FF22, #00D4FF11)",
-                        border: `1px solid ${isScrapingThis ? "#1A1A2E" : status === "error" ? "#FF3E9A44" : "#00D4FF44"}`,
+                        background: "linear-gradient(135deg, #A8FF3E22, #A8FF3E11)",
+                        border: "1px solid #A8FF3E44",
                         borderRadius: "8px", padding: "6px 12px",
-                        color: isScrapingThis ? "#3A3A5A" : status === "error" ? "#FF3E9A" : "#00D4FF",
+                        color: "#A8FF3E",
                         fontFamily: "'Space Mono', monospace", fontSize: "10px",
-                        cursor: isScrapingThis ? "not-allowed" : "pointer",
+                        cursor: "pointer",
                         display: "flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap",
                       }}
                     >
-                      {isScrapingThis
-                        ? <><span style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#00D4FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />OPENCLAW...</>
-                        : status === "error" ? "✗ RETRY" : "⬇ SCRAPE"}
+                      📋 IMPORT JSON
                     </button>
                   )}
                 </div>
