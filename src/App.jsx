@@ -287,6 +287,10 @@ function GuestsTab() {
   const [jsonImporting, setJsonImporting] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [parsing, setParsing] = useState(false);
+  const [addGuestModal, setAddGuestModal] = useState(false);
+  const [addGuestForm, setAddGuestForm] = useState({ phone: "", name: "", linkedin_url: "", what_they_do: "", who_they_want_to_meet: "", interests: "", linkedin_json: "" });
+  const [addGuestError, setAddGuestError] = useState("");
+  const [addGuestSaving, setAddGuestSaving] = useState(false);
 
   useEffect(() => { fetchGuests(); }, []);
 
@@ -387,6 +391,62 @@ function GuestsTab() {
     // Nothing to do here
   }
 
+  async function addGuest() {
+    if (!addGuestForm.phone.trim()) { setAddGuestError("Phone number is required"); return; }
+    setAddGuestSaving(true);
+    setAddGuestError("");
+    try {
+      const phone = addGuestForm.phone.trim().startsWith("whatsapp:")
+        ? addGuestForm.phone.trim()
+        : `whatsapp:${addGuestForm.phone.trim()}`;
+
+      // Parse LinkedIn JSON if provided
+      let linkedin_data = null;
+      if (addGuestForm.linkedin_json.trim()) {
+        try {
+          const clean = addGuestForm.linkedin_json.replace(/```json|```/g, "").trim();
+          const match = clean.match(/\{[\s\S]+\}/);
+          linkedin_data = JSON.parse(match ? match[0] : clean);
+        } catch {
+          setAddGuestError("Invalid LinkedIn JSON — check the format");
+          setAddGuestSaving(false);
+          return;
+        }
+      }
+
+      const payload = {
+        phone,
+        ...(addGuestForm.name.trim() && { name: addGuestForm.name.trim() }),
+        ...(addGuestForm.linkedin_url.trim() && { linkedin_url: addGuestForm.linkedin_url.trim() }),
+        ...(addGuestForm.what_they_do.trim() && { what_they_do: addGuestForm.what_they_do.trim() }),
+        ...(addGuestForm.who_they_want_to_meet.trim() && { who_they_want_to_meet: addGuestForm.who_they_want_to_meet.trim() }),
+        ...(addGuestForm.interests.trim() && { interests: addGuestForm.interests.trim() }),
+        ...(linkedin_data && { linkedin_data }),
+        rsvp_status: "confirmed",
+        onboarding_complete: true,
+      };
+
+      const resp = await fetch(`${RAILWAY_URL}/guests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (resp.ok) {
+        await fetchGuests();
+        setAddGuestModal(false);
+        setAddGuestForm({ phone: "", name: "", linkedin_url: "", what_they_do: "", who_they_want_to_meet: "", interests: "", linkedin_json: "" });
+      } else {
+        const err = await resp.json();
+        setAddGuestError(err.error || "Failed to add guest");
+      }
+    } catch (e) {
+      setAddGuestError("Error: " + e.message);
+    } finally {
+      setAddGuestSaving(false);
+    }
+  }
+
   async function parseAndSave() {
     if (!pasteText.trim() || !pasteModal) return;
     setParsing(true);
@@ -444,9 +504,13 @@ function GuestsTab() {
         <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", letterSpacing: "0.1em" }}>
           👥 GUEST LIST — CLICK ROW TO VIEW PROFILE
         </div>
-        <button onClick={fetchGuests} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "6px 14px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={() => { setAddGuestError(""); setAddGuestModal(true); }} style={{ background: "linear-gradient(135deg, #A8FF3E22, #A8FF3E11)", border: "1px solid #A8FF3E44", borderRadius: "8px", padding: "6px 14px", color: "#A8FF3E", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}>+ ADD GUEST</button>
+          <button onClick={fetchGuests} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "6px 14px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}>
           ↺ REFRESH
+          21ba REFRESH
         </button>
+        </div>
       </div>
 
       {/* Guest table */}
@@ -864,6 +928,68 @@ function GuestsTab() {
                   CANCEL
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Add Guest Modal */}
+      {addGuestModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }}
+          onClick={() => !addGuestSaving && setAddGuestModal(false)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "20px", width: "580px", maxHeight: "85vh", overflowY: "auto", padding: "28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", letterSpacing: "0.1em", marginBottom: "6px" }}>+ ADD TEST GUEST</div>
+                <div style={{ fontSize: "15px", fontWeight: 600, color: "#E8E8F0" }}>Add guest manually</div>
+              </div>
+              {!addGuestSaving && <button onClick={() => setAddGuestModal(false)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>}
+            </div>
+
+            {[
+              { key: "phone", label: "PHONE NUMBER *", placeholder: "+15550000001 (required, must be unique)" },
+              { key: "name", label: "NAME", placeholder: "Jane Smith" },
+              { key: "linkedin_url", label: "LINKEDIN URL", placeholder: "https://linkedin.com/in/username" },
+              { key: "what_they_do", label: "WHAT THEY DO", placeholder: "Building AI tools for healthcare" },
+              { key: "who_they_want_to_meet", label: "WHO THEY WANT TO MEET", placeholder: "Investors, other founders" },
+              { key: "interests", label: "INTERESTS", placeholder: "Music, hiking, cooking" },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>{label}</div>
+                <input
+                  value={addGuestForm[key]}
+                  onChange={e => setAddGuestForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "9px 12px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+            ))}
+
+            <div>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>LINKEDIN JSON (optional — paste from OpenClaw)</div>
+              <textarea
+                value={addGuestForm.linkedin_json}
+                onChange={e => setAddGuestForm(f => ({ ...f, linkedin_json: e.target.value }))}
+                placeholder='{"full_name": "...", "experiences": [...], ...}'
+                rows={4}
+                style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "9px 12px", color: "#E8E8F0", fontFamily: "'Space Mono', monospace", fontSize: "11px", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {addGuestError && <div style={{ fontSize: "12px", color: "#FF3E9A", fontFamily: "'Space Mono', monospace", background: "#FF3E9A11", border: "1px solid #FF3E9A33", borderRadius: "8px", padding: "8px 12px" }}>{addGuestError}</div>}
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={addGuest}
+                disabled={addGuestSaving}
+                style={{ flex: 1, background: addGuestSaving ? "#1A1A2E" : "linear-gradient(135deg, #A8FF3E, #4ADE80)", border: "none", borderRadius: "10px", padding: "13px", color: addGuestSaving ? "#3A3A5A" : "#07070F", fontFamily: "'Space Mono', monospace", fontSize: "12px", cursor: addGuestSaving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+              >
+                {addGuestSaving ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#A8FF3E", display: "inline-block", animation: "spin 0.8s linear infinite" }} />SAVING...</> : "✓ ADD GUEST"}
+              </button>
+              {!addGuestSaving && <button onClick={() => setAddGuestModal(false)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "10px", padding: "13px 18px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>CANCEL</button>}
             </div>
           </div>
         </div>
