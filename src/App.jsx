@@ -1167,6 +1167,8 @@ function MatchesTab() {
   const [deepLoading, setDeepLoading] = useState(false);
   const [introModal, setIntroModal] = useState(null);
   const [filterMin, setFilterMin] = useState(60);
+  const [mode, setMode] = useState("batch"); // "batch" or "pairwise"
+  const [pairwiseProgress, setPairwiseProgress] = useState({ done: 0, total: 0 });
 
   useEffect(() => { loadGuests(); }, []);
 
@@ -1264,6 +1266,92 @@ Only include pairs with score 60+. Be ruthlessly specific — reference actual c
     setGenerating(false);
   }
 
+  async function generatePairwise() {
+    if (guests.length < 2) return;
+    setGenerating(true);
+    setMatches([]);
+
+    const pairs = [];
+    for (let i = 0; i < guests.length; i++) {
+      for (let j = i + 1; j < guests.length; j++) {
+        pairs.push([i, j]);
+      }
+    }
+
+    const total = pairs.length;
+    setPairwiseProgress({ done: 0, total });
+
+    const results = [];
+
+    // Process in batches of 5 concurrent requests
+    const BATCH_SIZE = 5;
+    for (let b = 0; b < pairs.length; b += BATCH_SIZE) {
+      const batch = pairs.slice(b, b + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(async ([i, j]) => {
+        const gA = guests[i];
+        const gB = guests[j];
+        const prompt = `Rate how well these two people would benefit from meeting at a networking event in LA. Be concise.
+
+PERSON A:
+${buildProfileSummary(gA)}
+
+PERSON B:
+${buildProfileSummary(gB)}
+
+Return ONLY a JSON object:
+{
+  "score": 0-100,
+  "match_type": "brief label e.g. investor+founder, peers, collaborators",
+  "reason_for_a": "one sentence why A benefits",
+  "reason_for_b": "one sentence why B benefits",
+  "shared": "what they have in common",
+  "intro_hook": "one punchy opening line for an intro"
+}`;
+
+        try {
+          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true",
+            },
+            body: JSON.stringify({
+              model: "claude-haiku-4-5-20251001",
+              max_tokens: 400,
+              messages: [{ role: "user", content: prompt }],
+            }),
+          });
+          const data = await resp.json();
+          const text = data.content?.[0]?.text || "";
+          const clean = text.replace(/```json|```/g, "").trim();
+          const jsonMatch = clean.match(/\{[\s\S]+\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            return {
+              ...parsed,
+              a: i, b: j,
+              guestA: gA, guestB: gB,
+              nameA: gA.linkedin_data?.full_name || gA.name || "Guest A",
+              nameB: gB.linkedin_data?.full_name || gB.name || "Guest B",
+            };
+          }
+        } catch (e) { console.error(e); }
+        return null;
+      }));
+
+      const valid = batchResults.filter(Boolean);
+      results.push(...valid);
+      setPairwiseProgress(p => ({ ...p, done: Math.min(b + BATCH_SIZE, total) }));
+
+      // Update matches progressively as results come in
+      setMatches([...results].sort((a, b) => b.score - a.score));
+    }
+
+    setGenerating(false);
+  }
+
   async function deepAnalyze(match) {
     setDeepLoading(true);
     setSelectedMatch(match);
@@ -1325,17 +1413,46 @@ Return a JSON object:
           <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF", letterSpacing: "0.1em", marginBottom: "4px" }}>🤜🤛 MATCH ENGINE</div>
           <div style={{ fontSize: "13px", color: "#5A5A7A" }}>{guests.length} guests loaded · {matches.length} matches found</div>
         </div>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          {/* Mode toggle */}
+          <div style={{ display: "flex", background: "#0F0F1A", borderRadius: "8px", padding: "3px" }}>
+            {[["batch", "⚡ BATCH"], ["pairwise", "🔬 PAIRWISE"]].map(([m, label]) => (
+              <button key={m} onClick={() => setMode(m)}
+                style={{ padding: "5px 12px", borderRadius: "6px", border: "none", cursor: "pointer", fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.05em", background: mode === m ? "#B388FF22" : "transparent", color: mode === m ? "#B388FF" : "#5A5A7A", transition: "all 0.15s" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Cost estimate for pairwise */}
+          {mode === "pairwise" && guests.length >= 2 && (
+            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FFB800", background: "#FFB80011", border: "1px solid #FFB80033", borderRadius: "6px", padding: "4px 10px" }}>
+              ~{Math.round(guests.length * (guests.length - 1) / 2)} pairs · ~${(guests.length * (guests.length - 1) / 2 * 0.0002).toFixed(2)}
+            </div>
+          )}
+
+          {/* Progress for pairwise */}
+          {generating && mode === "pairwise" && pairwiseProgress.total > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "100px", height: "4px", background: "#1A1A2E", borderRadius: "2px" }}>
+                <div style={{ height: "100%", borderRadius: "2px", background: "#B388FF", width: `${(pairwiseProgress.done / pairwiseProgress.total) * 100}%`, transition: "width 0.3s" }} />
+              </div>
+              <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF" }}>{pairwiseProgress.done}/{pairwiseProgress.total}</span>
+            </div>
+          )}
+
+          {/* Score filter */}
           {matches.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A" }}>MIN SCORE</span>
+              <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A" }}>MIN</span>
               <input type="range" min={50} max={90} step={5} value={filterMin} onChange={e => setFilterMin(+e.target.value)}
-                style={{ width: "80px", accentColor: "#B388FF" }} />
+                style={{ width: "70px", accentColor: "#B388FF" }} />
               <span style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#B388FF" }}>{filterMin}+</span>
             </div>
           )}
+
           <button
-            onClick={generateMatches}
+            onClick={mode === "pairwise" ? generatePairwise : generateMatches}
             disabled={generating || guests.length < 2}
             style={{
               background: generating ? "#0A0A18" : "linear-gradient(135deg, #B388FF, #7C4DFF)",
@@ -1348,8 +1465,8 @@ Return a JSON object:
             }}
           >
             {generating
-              ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#B388FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />ANALYZING {guests.length} GUESTS...</>
-              : matches.length > 0 ? "↺ REGENERATE" : "⚡ GENERATE MATCHES"}
+              ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#B388FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />{mode === "pairwise" ? `SCORING ${pairwiseProgress.done}/${pairwiseProgress.total}...` : `ANALYZING ${guests.length} GUESTS...`}</>
+              : matches.length > 0 ? "↺ REGENERATE" : mode === "pairwise" ? "🔬 RUN PAIRWISE" : "⚡ GENERATE MATCHES"}
           </button>
         </div>
       </div>
