@@ -458,7 +458,7 @@ function GuestsTab() {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: `Parse this LinkedIn profile text and return ONLY a JSON object:\n\nLINKEDIN TEXT:\n${pasteText.slice(0, 8000)}\n\nJSON fields: full_name, headline, current_role, current_company, location, summary (2-3 sentences), experiences (array of {title,company,duration}), education (array of {school,degree}), skills (array), connection_count (null). Return ONLY the JSON.` }] }),
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, messages: [{ role: "user", content: `Parse this LinkedIn profile text and return ONLY a JSON object:\n\nLINKEDIN TEXT:\n${pasteText.slice(0, 8000)}\n\nJSON fields: full_name, headline, current_role, current_company, location, summary (2-3 sentences), experiences (array of {title,company,duration}), education (array of {school,degree}), skills (array), connection_count (null). Return ONLY the JSON.` }] }),
       });
       const data = await response.json();
       const text = data.content?.[0]?.text || "";
@@ -1236,7 +1236,7 @@ Only include pairs with score 60+. Be ruthlessly specific — reference actual c
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 4000,
           messages: [{ role: "user", content: prompt }],
         }),
@@ -1296,7 +1296,7 @@ Return a JSON object:
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 1000,
           messages: [{ role: "user", content: prompt }],
         }),
@@ -1895,7 +1895,7 @@ export default function SonaAgent() {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: buildSystemPrompt(event) + `\n\nCurrent workstream: ${WORKSTREAMS.find(w => w.id === workstream)?.label || ""}.`, messages: newHistory }),
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, system: buildSystemPrompt(event) + `\n\nCurrent workstream: ${WORKSTREAMS.find(w => w.id === workstream)?.label || ""}.`, messages: newHistory }),
       });
       const data = await response.json();
       const reply = data.content?.[0]?.text || "Something went wrong.";
@@ -1914,7 +1914,7 @@ export default function SonaAgent() {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: buildSystemPrompt(event), messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, system: buildSystemPrompt(event), messages: [{ role: "user", content: prompt }] }),
       });
       const data = await response.json();
       setGmailModal({ vendor, draftContent: data.content?.[0]?.text || "" });
