@@ -291,6 +291,9 @@ function GuestsTab() {
   const [addGuestForm, setAddGuestForm] = useState({ phone: "", name: "", linkedin_url: "", what_they_do: "", who_they_want_to_meet: "", interests: "", linkedin_json: "" });
   const [addGuestError, setAddGuestError] = useState("");
   const [addGuestSaving, setAddGuestSaving] = useState(false);
+  const [editingGuest, setEditingGuest] = useState(null); // phone of guest being edited
+  const [editForm, setEditForm] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => { fetchGuests(); }, []);
 
@@ -664,32 +667,88 @@ function GuestsTab() {
             onClick={e => e.stopPropagation()}
             style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "20px", width: "560px", maxHeight: "80vh", overflowY: "auto", padding: "28px" }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
-              <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FF6B35", letterSpacing: "0.1em", marginBottom: "6px" }}>GUEST PROFILE</div>
-                <div style={{ fontSize: "20px", fontWeight: 600, color: "#E8E8F0" }}>
-                  {selectedGuest.linkedin_data?.full_name || selectedGuest.name || "Unknown Guest"}
-                </div>
+                {editingGuest === selectedGuest.phone ? (
+                  <input value={editForm.name || ""} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Full name" style={{ background: "#0F0F1A", border: "1px solid #A8FF3E44", borderRadius: "8px", padding: "6px 10px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "18px", fontWeight: 600, outline: "none", width: "100%" }} />
+                ) : (
+                  <div style={{ fontSize: "20px", fontWeight: 600, color: "#E8E8F0" }}>
+                    {selectedGuest.linkedin_data?.full_name || selectedGuest.name || "Unknown Guest"}
+                  </div>
+                )}
                 {selectedGuest.linkedin_data?.headline && (
                   <div style={{ fontSize: "13px", color: "#8888AA", marginTop: "4px" }}>{selectedGuest.linkedin_data.headline}</div>
                 )}
               </div>
-              <button onClick={() => setSelectedGuest(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              <div style={{ display: "flex", gap: "8px", marginLeft: "12px" }}>
+                {editingGuest === selectedGuest.phone ? (
+                  <>
+                    <button
+                      onClick={async () => {
+                        setEditSaving(true);
+                        try {
+                          const resp = await fetch(`${RAILWAY_URL}/guests/${encodeURIComponent(selectedGuest.phone)}`, {
+                            method: "PATCH", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(editForm),
+                          });
+                          if (resp.ok) {
+                            const updated = { ...selectedGuest, ...editForm };
+                            setGuests(prev => prev.map(g => g.phone === selectedGuest.phone ? updated : g));
+                            setSelectedGuest(updated);
+                            setEditingGuest(null);
+                          }
+                        } catch(e) { console.error(e); }
+                        setEditSaving(false);
+                      }}
+                      disabled={editSaving}
+                      style={{ background: "linear-gradient(135deg,#A8FF3E,#4ADE80)", border: "none", borderRadius: "8px", padding: "6px 14px", color: "#07070F", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}
+                    >{editSaving ? "SAVING..." : "✓ SAVE"}</button>
+                    <button onClick={() => setEditingGuest(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "6px 10px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}>CANCEL</button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => { setEditingGuest(selectedGuest.phone); setEditForm({ name: selectedGuest.name || selectedGuest.linkedin_data?.full_name || "", linkedin_url: selectedGuest.linkedin_url || "", what_they_do: selectedGuest.what_they_do || "", who_they_want_to_meet: selectedGuest.who_they_want_to_meet || "", interests: selectedGuest.interests || "" }); }}
+                    style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "8px", padding: "6px 12px", color: "#8888AA", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}
+                  >✏ EDIT</button>
+                )}
+                <button onClick={() => { setSelectedGuest(null); setEditingGuest(null); }} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              </div>
             </div>
 
-            {/* Basic info */}
+            {/* Basic info — editable */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
-              {[
-                ["Phone", selectedGuest.phone?.replace("whatsapp:", "") || "—"],
-                ["RSVP", selectedGuest.rsvp_status || "pending"],
-                ["Location", selectedGuest.linkedin_data?.location || selectedGuest.city || "—"],
-                ["Company", selectedGuest.linkedin_data?.current_company || "—"],
-              ].map(([k, v]) => (
-                <div key={k} style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
-                  <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "4px" }}>{k.toUpperCase()}</div>
-                  <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{v}</div>
-                </div>
-              ))}
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "4px" }}>PHONE</div>
+                <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{selectedGuest.phone?.replace("whatsapp:", "") || "—"}</div>
+              </div>
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "4px" }}>RSVP</div>
+                <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{selectedGuest.rsvp_status || "pending"}</div>
+              </div>
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "4px" }}>LOCATION</div>
+                <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{selectedGuest.linkedin_data?.location || selectedGuest.city || "—"}</div>
+              </div>
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "4px" }}>COMPANY</div>
+                <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{selectedGuest.linkedin_data?.current_company || "—"}</div>
+              </div>
+            </div>
+
+            {/* Editable LinkedIn URL */}
+            <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px", marginBottom: "12px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "6px" }}>LINKEDIN URL</div>
+              {editingGuest === selectedGuest.phone ? (
+                <input value={editForm.linkedin_url || ""} onChange={e => setEditForm(f => ({ ...f, linkedin_url: e.target.value }))}
+                  placeholder="https://linkedin.com/in/username"
+                  style={{ background: "#1A1A2E", border: "1px solid #A8FF3E44", borderRadius: "6px", padding: "6px 10px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", width: "100%", boxSizing: "border-box" }} />
+              ) : (
+                selectedGuest.linkedin_url
+                  ? <a href={selectedGuest.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "13px", color: "#00D4FF", textDecoration: "none" }}>{selectedGuest.linkedin_url}</a>
+                  : <span style={{ fontSize: "13px", color: "#3A3A5A" }}>—</span>
+              )}
             </div>
 
             {/* LinkedIn data — full display */}
@@ -768,15 +827,26 @@ function GuestsTab() {
               </div>
             )}
 
-            {/* What they said */}
-            {(selectedGuest.what_they_do || selectedGuest.who_they_want_to_meet || selectedGuest.interests) && (
-              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginTop: "12px" }}>
-                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>FROM ONBOARDING</div>
-                {selectedGuest.what_they_do && <div style={{ marginBottom: "8px" }}><span style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>WORKING ON: </span><span style={{ fontSize: "13px", color: "#8888AA" }}>{selectedGuest.what_they_do}</span></div>}
-                {selectedGuest.who_they_want_to_meet && <div style={{ marginBottom: "8px" }}><span style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>WANTS TO MEET: </span><span style={{ fontSize: "13px", color: "#8888AA" }}>{selectedGuest.who_they_want_to_meet}</span></div>}
-                {selectedGuest.interests && <div><span style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>INTERESTS: </span><span style={{ fontSize: "13px", color: "#8888AA" }}>{selectedGuest.interests}</span></div>}
-              </div>
-            )}
+            {/* Editable onboarding fields */}
+            <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginTop: "12px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>FROM ONBOARDING</div>
+              {[
+                { key: "what_they_do", label: "WORKING ON", placeholder: "What are they building or working on?" },
+                { key: "who_they_want_to_meet", label: "WANTS TO MEET", placeholder: "Who do they want to connect with?" },
+                { key: "interests", label: "INTERESTS", placeholder: "Hobbies, passions outside work" },
+              ].map(({ key, label, placeholder }) => (
+                <div key={key} style={{ marginBottom: "10px" }}>
+                  <div style={{ fontSize: "10px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", marginBottom: "4px" }}>{label}</div>
+                  {editingGuest === selectedGuest.phone ? (
+                    <input value={editForm[key] || ""} onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      style={{ background: "#1A1A2E", border: "1px solid #A8FF3E44", borderRadius: "6px", padding: "6px 10px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", width: "100%", boxSizing: "border-box" }} />
+                  ) : (
+                    <span style={{ fontSize: "13px", color: "#8888AA" }}>{selectedGuest[key] || <span style={{ color: "#3A3A5A" }}>—</span>}</span>
+                  )}
+                </div>
+              ))}
+            </div>
 
             {/* Personalized invite */}
             {selectedGuest.personalized_invite && (
