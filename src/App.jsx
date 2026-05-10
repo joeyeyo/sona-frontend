@@ -48,6 +48,7 @@ const WORKSTREAMS = [
     ],
   },
   { id: "guests", label: "Guests", icon: "👥", color: "#FF6B35" },
+  { id: "matches", label: "Matches", icon: "🤜🤛", color: "#B388FF" },
   {
     id: "logistics", label: "Logistics", icon: "📋", color: "#FF3E9A",
     templates: [
@@ -1156,6 +1157,434 @@ function GuestsTab() {
   );
 }
 
+
+// ── Matches Tab ───────────────────────────────────────────────────────────────
+function MatchesTab() {
+  const [guests, setGuests] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [generating, setGenerating] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [introModal, setIntroModal] = useState(null);
+  const [filterMin, setFilterMin] = useState(60);
+
+  useEffect(() => { loadGuests(); }, []);
+
+  async function loadGuests() {
+    const resp = await fetch(`${RAILWAY_URL}/guests`);
+    const data = await resp.json();
+    setGuests(data.filter(g => g.onboarding_complete || g.linkedin_data));
+  }
+
+  function buildProfileSummary(g) {
+    const ld = g.linkedin_data || {};
+    return `Name: ${ld.full_name || g.name || "Unknown"}
+Headline: ${ld.headline || ""}
+Current: ${ld.current_role || ""} at ${ld.current_company || ""}
+Location: ${ld.location || ""}
+Summary: ${ld.summary || ""}
+What they do: ${g.what_they_do || ""}
+Who they want to meet: ${g.who_they_want_to_meet || ""}
+Interests: ${g.interests || ""}
+Experience: ${(ld.experiences || []).slice(0, 3).map(e => `${e.title} at ${e.company}`).join(", ")}
+Education: ${(ld.education || []).map(e => `${e.school}${e.degree ? " - " + e.degree : ""}`).join(", ")}
+Skills: ${(ld.skills || []).slice(0, 10).join(", ")}`;
+  }
+
+  async function generateMatches() {
+    if (guests.length < 2) return;
+    setGenerating(true);
+    setMatches([]);
+
+    const profiles = guests.map((g, i) => ({
+      id: i,
+      phone: g.phone,
+      summary: buildProfileSummary(g),
+    }));
+
+    const prompt = `You are a smart matchmaker for an exclusive networking event in Los Angeles. 
+Analyze these ${profiles.length} guest profiles and identify the top matches — pairs of people who would genuinely benefit from meeting each other.
+
+PROFILES:
+${profiles.map(p => `[${p.id}] ${p.summary}`).join("\n\n---\n\n")}
+
+For each strong match (score 60+), return a JSON array. Aim for the top 15-20 best pairs only.
+
+Return ONLY a JSON array:
+[
+  {
+    "a": 0,
+    "b": 1,
+    "score": 85,
+    "match_type": "investor meets founder / collaborators / peers / etc",
+    "reason_for_a": "One sentence why person A benefits from meeting person B — be specific, reference their actual goals",
+    "reason_for_b": "One sentence why person B benefits from meeting person A — be specific",
+    "shared": "What they genuinely have in common",
+    "intro_hook": "One punchy sentence to open the intro message e.g. 'Tom, meet Joe — he's building the AI community platform you've been looking for.'"
+  }
+]
+
+Only include pairs with score 60+. Be ruthlessly specific — reference actual companies, roles, goals from their profiles. Return ONLY the JSON array.`;
+
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      const data = await resp.json();
+      const text = data.content?.[0]?.text || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const match = clean.match(/\[[\s\S]+\]/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        // Attach guest objects
+        const enriched = parsed.map(m => ({
+          ...m,
+          guestA: guests[m.a],
+          guestB: guests[m.b],
+          nameA: guests[m.a]?.linkedin_data?.full_name || guests[m.a]?.name || "Guest A",
+          nameB: guests[m.b]?.linkedin_data?.full_name || guests[m.b]?.name || "Guest B",
+        })).sort((a, b) => b.score - a.score);
+        setMatches(enriched);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setGenerating(false);
+  }
+
+  async function deepAnalyze(match) {
+    setDeepLoading(true);
+    setSelectedMatch(match);
+    const prompt = `Do a deep match analysis for these two people meeting at a networking event:
+
+PERSON A: ${buildProfileSummary(match.guestA)}
+
+PERSON B: ${buildProfileSummary(match.guestB)}
+
+Return a JSON object:
+{
+  "score": number 0-100,
+  "match_type": "string",
+  "why_they_should_meet": "2-3 sentences, very specific",
+  "what_a_gets": "Specific value A gets from B",
+  "what_b_gets": "Specific value B gets from A",
+  "conversation_starters": ["3 specific topics they could discuss"],
+  "potential_collaborations": ["1-2 concrete ways they could work together"],
+  "shared_context": "Any shared companies, schools, industries, locations",
+  "intro_message": "A complete WhatsApp intro message from Sona introducing them to each other at the event. Warm, specific, under 100 words."
+}`;
+
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      const data = await resp.json();
+      const text = data.content?.[0]?.text || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const jsonMatch = clean.match(/\{[\s\S]+\}/);
+      if (jsonMatch) {
+        const deep = JSON.parse(jsonMatch[0]);
+        setSelectedMatch(m => ({ ...m, deep }));
+      }
+    } catch (e) { console.error(e); }
+    setDeepLoading(false);
+  }
+
+  const scoreColor = (s) => s >= 85 ? "#A8FF3E" : s >= 70 ? "#FFB800" : "#FF6B35";
+  const filtered = matches.filter(m => m.score >= filterMin);
+
+  return (
+    <div style={{ padding: "28px", overflowY: "auto", height: "100%", display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF", letterSpacing: "0.1em", marginBottom: "4px" }}>🤜🤛 MATCH ENGINE</div>
+          <div style={{ fontSize: "13px", color: "#5A5A7A" }}>{guests.length} guests loaded · {matches.length} matches found</div>
+        </div>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {matches.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A" }}>MIN SCORE</span>
+              <input type="range" min={50} max={90} step={5} value={filterMin} onChange={e => setFilterMin(+e.target.value)}
+                style={{ width: "80px", accentColor: "#B388FF" }} />
+              <span style={{ fontSize: "11px", fontFamily: "'Space Mono', monospace", color: "#B388FF" }}>{filterMin}+</span>
+            </div>
+          )}
+          <button
+            onClick={generateMatches}
+            disabled={generating || guests.length < 2}
+            style={{
+              background: generating ? "#0A0A18" : "linear-gradient(135deg, #B388FF, #7C4DFF)",
+              border: generating ? "1px solid #1A1A2E" : "none",
+              borderRadius: "10px", padding: "10px 20px",
+              color: generating ? "#3A3A5A" : "white",
+              fontFamily: "'Space Mono', monospace", fontSize: "11px",
+              cursor: generating || guests.length < 2 ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", gap: "8px",
+            }}
+          >
+            {generating
+              ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#B388FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />ANALYZING {guests.length} GUESTS...</>
+              : matches.length > 0 ? "↺ REGENERATE" : "⚡ GENERATE MATCHES"}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      {matches.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+          {[
+            { label: "Total Matches", value: matches.length, color: "#B388FF" },
+            { label: "Strong (85+)", value: matches.filter(m => m.score >= 85).length, color: "#A8FF3E" },
+            { label: "Good (70-84)", value: matches.filter(m => m.score >= 70 && m.score < 85).length, color: "#FFB800" },
+            { label: "Avg Score", value: Math.round(matches.reduce((s, m) => s + m.score, 0) / matches.length), color: "#00D4FF" },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "12px", padding: "14px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>{s.label.toUpperCase()}</div>
+              <div style={{ fontSize: "24px", fontWeight: 600, color: s.color, fontFamily: "'Space Mono', monospace" }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Match list */}
+      {matches.length === 0 && !generating && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", color: "#3A3A5A" }}>
+          <div style={{ fontSize: "48px" }}>🤜🤛</div>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "14px" }}>
+            {guests.length < 2 ? `NEED AT LEAST 2 GUESTS (have ${guests.length})` : "CLICK GENERATE MATCHES TO START"}
+          </div>
+          <div style={{ fontSize: "12px", color: "#2A2A4A", textAlign: "center", maxWidth: "400px" }}>
+            Claude will analyze all {guests.length} guest profiles and find the best connections based on their goals, background, and interests.
+          </div>
+        </div>
+      )}
+
+      {filtered.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {filtered.map((m, i) => (
+            <div
+              key={i}
+              onClick={() => deepAnalyze(m)}
+              style={{
+                background: "#0A0A18", border: `1px solid ${selectedMatch?.nameA === m.nameA && selectedMatch?.nameB === m.nameB ? "#B388FF44" : "#1A1A2E"}`,
+                borderRadius: "12px", padding: "16px 20px",
+                cursor: "pointer", transition: "all 0.15s",
+                display: "grid", gridTemplateColumns: "60px 1fr 1fr 140px 80px",
+                gap: "16px", alignItems: "center",
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = "#B388FF44"}
+              onMouseLeave={e => e.currentTarget.style.borderColor = selectedMatch?.nameA === m.nameA && selectedMatch?.nameB === m.nameB ? "#B388FF44" : "#1A1A2E"}
+            >
+              {/* Score */}
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: scoreColor(m.score), fontFamily: "'Space Mono', monospace" }}>{m.score}</div>
+                <div style={{ fontSize: "9px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>SCORE</div>
+              </div>
+
+              {/* Person A */}
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "#E8E8F0" }}>{m.nameA}</div>
+                <div style={{ fontSize: "11px", color: "#5A5A7A", marginTop: "2px" }}>{m.guestA?.linkedin_data?.headline?.slice(0, 60) || m.guestA?.what_they_do?.slice(0, 60) || "—"}</div>
+                <div style={{ fontSize: "11px", color: "#8888AA", marginTop: "4px", fontStyle: "italic" }}>{m.reason_for_a?.slice(0, 80)}...</div>
+              </div>
+
+              {/* Person B */}
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "#E8E8F0" }}>{m.nameB}</div>
+                <div style={{ fontSize: "11px", color: "#5A5A7A", marginTop: "2px" }}>{m.guestB?.linkedin_data?.headline?.slice(0, 60) || m.guestB?.what_they_do?.slice(0, 60) || "—"}</div>
+                <div style={{ fontSize: "11px", color: "#8888AA", marginTop: "4px", fontStyle: "italic" }}>{m.reason_for_b?.slice(0, 80)}...</div>
+              </div>
+
+              {/* Match type */}
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF", background: "#B388FF11", border: "1px solid #B388FF33", borderRadius: "6px", padding: "4px 8px", textAlign: "center" }}>
+                {m.match_type?.toUpperCase()}
+              </div>
+
+              {/* Action */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <button
+                  onClick={e => { e.stopPropagation(); setIntroModal(m); }}
+                  style={{ background: "transparent", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "5px 8px", color: "#A8FF3E", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  ✉ INTRO
+                </button>
+                <div style={{ fontSize: "9px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace", textAlign: "center" }}>click for deep</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Deep analysis panel */}
+      {selectedMatch && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(12px)" }}
+          onClick={() => setSelectedMatch(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #B388FF33", borderRadius: "20px", width: "620px", maxHeight: "85vh", overflowY: "auto", padding: "28px" }}>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+              <div>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF", letterSpacing: "0.1em", marginBottom: "6px" }}>DEEP MATCH ANALYSIS</div>
+                <div style={{ fontSize: "18px", fontWeight: 600, color: "#E8E8F0" }}>{selectedMatch.nameA} × {selectedMatch.nameB}</div>
+                <div style={{ fontSize: "12px", color: "#5A5A7A", marginTop: "4px" }}>{selectedMatch.match_type}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ fontSize: "32px", fontWeight: 700, color: scoreColor(selectedMatch.score), fontFamily: "'Space Mono', monospace" }}>{selectedMatch.score}</div>
+                <button onClick={() => setSelectedMatch(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>
+              </div>
+            </div>
+
+            {deepLoading ? (
+              <div style={{ textAlign: "center", padding: "40px", color: "#B388FF", fontFamily: "'Space Mono', monospace", fontSize: "12px" }}>
+                <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "2px solid #2A2A4A", borderTopColor: "#B388FF", display: "inline-block", animation: "spin 0.8s linear infinite", marginBottom: "12px" }} />
+                <div>ANALYZING COMPATIBILITY...</div>
+              </div>
+            ) : selectedMatch.deep ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+                <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+                  <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>WHY THEY SHOULD MEET</div>
+                  <div style={{ fontSize: "13px", color: "#E8E8F0", lineHeight: 1.6 }}>{selectedMatch.deep.why_they_should_meet}</div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>{selectedMatch.nameA.toUpperCase()} GETS</div>
+                    <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.5 }}>{selectedMatch.deep.what_a_gets}</div>
+                  </div>
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>{selectedMatch.nameB.toUpperCase()} GETS</div>
+                    <div style={{ fontSize: "12px", color: "#8888AA", lineHeight: 1.5 }}>{selectedMatch.deep.what_b_gets}</div>
+                  </div>
+                </div>
+
+                {selectedMatch.deep.conversation_starters?.length > 0 && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "10px" }}>CONVERSATION STARTERS</div>
+                    {selectedMatch.deep.conversation_starters.map((s, i) => (
+                      <div key={i} style={{ fontSize: "12px", color: "#8888AA", marginBottom: "6px" }}>💬 {s}</div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedMatch.deep.potential_collaborations?.length > 0 && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "10px" }}>POTENTIAL COLLABORATIONS</div>
+                    {selectedMatch.deep.potential_collaborations.map((s, i) => (
+                      <div key={i} style={{ fontSize: "12px", color: "#8888AA", marginBottom: "6px" }}>🤝 {s}</div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedMatch.deep.shared_context && (
+                  <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>SHARED CONTEXT</div>
+                    <div style={{ fontSize: "12px", color: "#8888AA" }}>{selectedMatch.deep.shared_context}</div>
+                  </div>
+                )}
+
+                {selectedMatch.deep.intro_message && (
+                  <div style={{ background: "#A8FF3E11", border: "1px solid #A8FF3E33", borderRadius: "10px", padding: "14px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", marginBottom: "8px" }}>SUGGESTED INTRO MESSAGE</div>
+                    <div style={{ fontSize: "13px", color: "#E8E8F0", lineHeight: 1.6, fontStyle: "italic" }}>"{selectedMatch.deep.intro_message}"</div>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(selectedMatch.deep.intro_message)}
+                      style={{ marginTop: "10px", background: "transparent", border: "1px solid #A8FF3E33", borderRadius: "6px", padding: "6px 12px", color: "#A8FF3E", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}
+                    >📋 COPY</button>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setIntroModal(selectedMatch)}
+                  style={{ background: "linear-gradient(135deg, #A8FF3E, #4ADE80)", border: "none", borderRadius: "10px", padding: "12px", color: "#07070F", fontFamily: "'Space Mono', monospace", fontSize: "12px", cursor: "pointer" }}
+                >
+                  ✉ SEND INTRO VIA WHATSAPP
+                </button>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "20px", color: "#5A5A7A", fontSize: "12px" }}>Loading analysis...</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Intro modal */}
+      {introModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }}
+          onClick={() => setIntroModal(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #A8FF3E33", borderRadius: "20px", width: "540px", padding: "28px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#A8FF3E", marginBottom: "4px" }}>✉ SEND INTRO</div>
+            <div style={{ fontSize: "16px", fontWeight: 600, color: "#E8E8F0" }}>{introModal.nameA} × {introModal.nameB}</div>
+
+            <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>INTRO HOOK</div>
+              <div style={{ fontSize: "13px", color: "#E8E8F0", lineHeight: 1.6, fontStyle: "italic" }}>"{introModal.intro_hook}"</div>
+            </div>
+
+            <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px" }}>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>SEND TO</div>
+              <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{introModal.guestA?.phone?.replace("whatsapp:", "")} ({introModal.nameA})</div>
+              <div style={{ fontSize: "13px", color: "#E8E8F0", marginTop: "4px" }}>{introModal.guestB?.phone?.replace("whatsapp:", "")} ({introModal.nameB})</div>
+            </div>
+
+            <div style={{ fontSize: "12px", color: "#5A5A7A" }}>
+              This will send a WhatsApp message via Sona to both guests introducing them to each other. Use the Railway admin endpoint to send.
+            </div>
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={async () => {
+                  const msg = introModal.deep?.intro_message || introModal.intro_hook || `Hey! I wanted to introduce you to ${introModal.nameB} — I think you two would really hit it off. ${introModal.shared}`;
+                  // Send to both guests via Railway
+                  for (const phone of [introModal.guestA?.phone, introModal.guestB?.phone]) {
+                    if (phone) {
+                      await fetch(`${RAILWAY_URL}/admin/send-message`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ phone, message: msg }),
+                      }).catch(() => {});
+                    }
+                  }
+                  alert(`Intro sent to ${introModal.nameA} and ${introModal.nameB}!`);
+                  setIntroModal(null);
+                }}
+                style={{ flex: 1, background: "linear-gradient(135deg, #A8FF3E, #4ADE80)", border: "none", borderRadius: "10px", padding: "13px", color: "#07070F", fontFamily: "'Space Mono', monospace", fontSize: "12px", cursor: "pointer" }}
+              >✉ SEND INTRO TO BOTH</button>
+              <button onClick={() => setIntroModal(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "10px", padding: "13px 18px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>CANCEL</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Gmail Compose Modal ───────────────────────────────────────────────────────
 function GmailModal({ vendor, draftContent, onClose, onSent }) {
   const [to, setTo] = useState(vendor?.email || "");
@@ -1504,6 +1933,7 @@ export default function SonaAgent() {
 
   const isDashboard = activeWorkstream === "dashboard";
   const isGuests = activeWorkstream === "guests";
+  const isMatches = activeWorkstream === "matches";
   const isVendors = activeWorkstream === "vendors";
   const isChatTab = chatWorkstreams.includes(activeWorkstream);
   const ws = WORKSTREAMS.find(w => w.id === activeWorkstream);
@@ -1597,6 +2027,7 @@ export default function SonaAgent() {
                 <span style={{ fontSize: "13px", color: "#5A5A7A" }}>
                   {isDashboard && "Budget · Countdown · Progress"}
                   {isGuests && "Onboarded guests · LinkedIn scraping · RSVP status"}
+                  {isMatches && "AI-powered matchmaking · Deep analysis · Intro messages"}
                   {activeWorkstream === "marketing" && "Instagram, DMs, event copy"}
                   {isVendors && "Find & contact vendors"}
                   {activeWorkstream === "logistics" && "Timelines, checklists, run-of-show"}
@@ -1622,6 +2053,10 @@ export default function SonaAgent() {
           ) : isGuests ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
               <GuestsTab />
+            </div>
+          ) : isMatches ? (
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              <MatchesTab />
             </div>
           ) : isVendors && vendorView === "search" ? (
             <div style={{ flex: 1, overflowY: "auto" }}>
