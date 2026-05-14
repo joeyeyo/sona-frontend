@@ -295,8 +295,14 @@ function GuestsTab() {
   const [editingGuest, setEditingGuest] = useState(null); // phone of guest being edited
   const [editForm, setEditForm] = useState({});
   const [editSaving, setEditSaving] = useState(false);
+  const [guestScores, setGuestScores] = useState({});
+  const [overrideModal, setOverrideModal] = useState(null); // {phone, name, dimension, scoreBefore}
+  const [overrideValue, setOverrideValue] = useState(50);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideCategory, setOverrideCategory] = useState("other");
+  const [overrideSaving, setOverrideSaving] = useState(false);
 
-  useEffect(() => { fetchGuests(); }, []);
+  useEffect(() => { fetchGuests(); fetchGuestScores(); }, []);
 
   async function fetchGuests() {
     setLoading(true);
@@ -393,6 +399,53 @@ function GuestsTab() {
   async function openRelayAndScrape(guest) {
     // Don't open tab — OpenClaw will navigate there itself
     // Nothing to do here
+  }
+
+  async function fetchGuestScores() {
+    try {
+      const resp = await fetch(`${RAILWAY_URL}/guests/scores`);
+      if (resp.ok) {
+        const data = await resp.json();
+        const map = {};
+        data.forEach(s => { map[s.phone] = s; });
+        setGuestScores(map);
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  async function scoreGuest(phone) {
+    await fetch(`${RAILWAY_URL}/guests/score/${encodeURIComponent(phone)}`, { method: "POST" });
+    await fetchGuestScores();
+  }
+
+  async function saveOverride() {
+    if (!overrideModal || overrideSaving) return;
+    setOverrideSaving(true);
+    try {
+      await fetch(`${RAILWAY_URL}/scoring/override`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: overrideModal.phone,
+          guest_name: overrideModal.name,
+          dimension: overrideModal.dimension,
+          score_before: overrideModal.scoreBefore,
+          score_after: overrideValue,
+          reason: overrideReason,
+          reason_category: overrideCategory,
+        }),
+      });
+      setGuestScores(prev => ({
+        ...prev,
+        [overrideModal.phone]: {
+          ...(prev[overrideModal.phone] || {}),
+          [overrideModal.dimension]: overrideValue,
+        }
+      }));
+      setOverrideModal(null);
+      setOverrideReason("");
+    } catch(e) { console.error(e); }
+    setOverrideSaving(false);
   }
 
   async function addGuest() {
@@ -752,6 +805,54 @@ function GuestsTab() {
               )}
             </div>
 
+            {/* Success Score Panel */}
+            {(() => {
+              const sc = guestScores[selectedGuest.phone];
+              if (!sc) return (
+                <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontSize: "11px", color: "#3A3A5A", fontFamily: "'Space Mono', monospace" }}>NO SCORE YET</div>
+                  <button onClick={() => scoreGuest(selectedGuest.phone)}
+                    style={{ background: "#B388FF22", border: "1px solid #B388FF44", borderRadius: "6px", padding: "5px 12px", color: "#B388FF", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}>
+                    ⚡ SCORE NOW
+                  </button>
+                </div>
+              );
+              const dims = [
+                { key: "success_score", label: "OVERALL", color: "#A8FF3E", big: true },
+                { key: "pedigree_score", label: "PEDIGREE", color: "#00D4FF" },
+                { key: "accomplishment_score", label: "ACCOMPLISHMENTS", color: "#FFB800" },
+                { key: "credibility_score", label: "CREDIBILITY", color: "#FF6B35" },
+                { key: "company_score", label: "COMPANY", color: "#B388FF" },
+                { key: "value_to_others", label: "VALUE", color: "#FF3E9A" },
+              ];
+              return (
+                <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A" }}>SUCCESS SCORES — CLICK TO OVERRIDE</div>
+                    <button onClick={() => scoreGuest(selectedGuest.phone)}
+                      style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "6px", padding: "3px 8px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}>
+                      ↺ RESCORE
+                    </button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                    {dims.map(({ key, label, color, big }) => (
+                      <div key={key}
+                        onClick={() => { setOverrideModal({ phone: selectedGuest.phone, name: selectedGuest.name || selectedGuest.linkedin_data?.full_name, dimension: key, scoreBefore: sc[key] }); setOverrideValue(sc[key] || 50); setOverrideReason(""); setOverrideCategory("other"); }}
+                        style={{ background: "#0A0A18", borderRadius: "8px", padding: "10px", cursor: "pointer", border: `1px solid ${color}22`, gridColumn: big ? "1 / -1" : "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A" }}>{label}</div>
+                        <div style={{ fontSize: big ? "24px" : "18px", fontWeight: 700, color, fontFamily: "'Space Mono', monospace" }}>{sc[key] ?? "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {sc.score_breakdown?.key_insight && (
+                    <div style={{ marginTop: "10px", fontSize: "12px", color: "#8888AA", fontStyle: "italic", lineHeight: 1.5 }}>
+                      💡 {sc.score_breakdown?.key_insight || JSON.parse(sc.score_breakdown || "{}").key_insight}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* LinkedIn data — full display */}
             {selectedGuest.linkedin_data && !selectedGuest.linkedin_data.error ? (
               <>
@@ -1066,6 +1167,58 @@ function GuestsTab() {
         </div>
       )}
 
+      {/* Score Override Modal */}
+      {overrideModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, backdropFilter: "blur(12px)" }}
+          onClick={() => !overrideSaving && setOverrideModal(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#0A0A18", border: "1px solid #B388FF33", borderRadius: "20px", width: "480px", padding: "28px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF", marginBottom: "6px" }}>✏ OVERRIDE SCORE — YOUR FEEDBACK IMPROVES FUTURE RANKINGS</div>
+              <div style={{ fontSize: "16px", fontWeight: 600, color: "#E8E8F0" }}>{overrideModal.name}</div>
+              <div style={{ fontSize: "12px", color: "#5A5A7A", marginTop: "4px" }}>{overrideModal.dimension.replace(/_/g, " ").toUpperCase()}: {overrideModal.scoreBefore} → {overrideValue}</div>
+            </div>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A" }}>NEW SCORE</span>
+                <span style={{ fontSize: "16px", fontWeight: 700, color: "#B388FF", fontFamily: "'Space Mono', monospace" }}>{overrideValue}</span>
+              </div>
+              <input type="range" min={0} max={100} value={overrideValue} onChange={e => setOverrideValue(+e.target.value)}
+                style={{ width: "100%", accentColor: "#B388FF" }} />
+            </div>
+
+            <div>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "8px" }}>REASON CATEGORY</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {[["company_too_low", "Company underrated"], ["company_too_high", "Company overrated"], ["exit_size", "Exit size wrong"], ["pedigree_wrong", "Pedigree wrong"], ["not_founder", "Not actual founder"], ["no_deals_closed", "No deals closed"], ["industry_wrong", "Industry potential wrong"], ["other", "Other"]].map(([val, label]) => (
+                  <button key={val} onClick={() => setOverrideCategory(val)}
+                    style={{ padding: "4px 10px", borderRadius: "6px", border: `1px solid ${overrideCategory === val ? "#B388FF" : "#2A2A4A"}`, background: overrideCategory === val ? "#B388FF22" : "transparent", color: overrideCategory === val ? "#B388FF" : "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A", marginBottom: "6px" }}>YOUR REASONING (TRAINS FUTURE SCORING)</div>
+              <textarea value={overrideReason} onChange={e => setOverrideReason(e.target.value)}
+                placeholder="e.g. Eric's company has Fannie Mae regulatory moat — this should score higher than generic SaaS"
+                rows={3}
+                style={{ width: "100%", background: "#0F0F1A", border: "1px solid #1A1A2E", borderRadius: "8px", padding: "10px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "12px", outline: "none", resize: "none", boxSizing: "border-box" }} />
+            </div>
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={saveOverride} disabled={overrideSaving || !overrideReason.trim()}
+                style={{ flex: 1, background: overrideReason.trim() && !overrideSaving ? "linear-gradient(135deg, #B388FF, #7C4DFF)" : "#1A1A2E", border: "none", borderRadius: "10px", padding: "12px", color: overrideReason.trim() && !overrideSaving ? "white" : "#3A3A5A", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: overrideReason.trim() && !overrideSaving ? "pointer" : "not-allowed" }}>
+                {overrideSaving ? "SAVING..." : "✓ SAVE OVERRIDE"}
+              </button>
+              <button onClick={() => setOverrideModal(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "10px", padding: "12px 16px", color: "#5A5A7A", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>CANCEL</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Relay setup modal */}
       {relayModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }}
@@ -1169,6 +1322,7 @@ function MatchesTab() {
   const [filterMin, setFilterMin] = useState(60);
   const [mode, setMode] = useState("batch"); // "batch" or "pairwise"
   const [pairwiseProgress, setPairwiseProgress] = useState({ done: 0, total: 0 });
+  const [guestScores, setGuestScores] = useState({});
 
   useEffect(() => { loadGuests(); }, []);
 
@@ -1180,88 +1334,176 @@ function MatchesTab() {
 
   function buildProfileSummary(g) {
     const ld = g.linkedin_data || {};
-    return `Name: ${ld.full_name || g.name || "Unknown"}
+    const exps = (ld.experiences || []).map(e =>
+      `  - ${e.title} at ${e.company} (${e.dates || ""} ${e.duration ? "· " + e.duration : ""})${e.description ? ": " + e.description.slice(0, 200) : ""}`
+    ).join("\n");
+    const edu = (ld.education || []).map(e =>
+      `  - ${e.school}${e.degree ? " · " + e.degree : ""}${e.field ? " in " + e.field : ""}${e.description ? " · " + e.description.slice(0, 100) : ""}`
+    ).join("\n");
+    const honors = (ld.honors || []).join(", ");
+    const pubs = (ld.publications || []).map(p => typeof p === "string" ? p : p.title).join(", ");
+    const certs = (ld.certifications || []).map(c => c.name).join(", ");
+    const langs = (ld.languages || []).join(", ");
+
+    return `=== ${ld.full_name || g.name || "Unknown"} ===
 Headline: ${ld.headline || ""}
-Current: ${ld.current_role || ""} at ${ld.current_company || ""}
+Current Role: ${ld.current_role || ""} at ${ld.current_company || ""}
 Location: ${ld.location || ""}
-Summary: ${ld.summary || ""}
-What they do: ${g.what_they_do || ""}
-Who they want to meet: ${g.who_they_want_to_meet || ""}
-Interests: ${g.interests || ""}
-Experience: ${(ld.experiences || []).slice(0, 3).map(e => `${e.title} at ${e.company}`).join(", ")}
-Education: ${(ld.education || []).map(e => `${e.school}${e.degree ? " - " + e.degree : ""}`).join(", ")}
-Skills: ${(ld.skills || []).slice(0, 10).join(", ")}`;
+Connections: ${ld.connection_count || "unknown"} | Followers: ${ld.additional_sections?.follower_count || ld.additional_sections?.followers || "unknown"}
+
+ABOUT:
+${ld.summary || "(no summary)"}
+
+WHAT THEY DO (self-described): ${g.what_they_do || "(not provided)"}
+WHO THEY WANT TO MEET: ${g.who_they_want_to_meet || "(not provided)"}
+PERSONAL INTERESTS: ${g.interests || "(not provided)"}
+
+EXPERIENCE:
+${exps || "(none listed)"}
+
+EDUCATION:
+${edu || "(none listed)"}
+
+SKILLS: ${(ld.skills || []).join(", ") || "(none listed)"}
+HONORS & AWARDS: ${honors || "(none)"}
+PUBLICATIONS: ${pubs || "(none)"}
+CERTIFICATIONS: ${certs || "(none)"}
+LANGUAGES: ${langs || "(none)"}`;
+  }
+
+  function buildScoringPrompt(g) {
+    return `Score this person on the following dimensions. Return ONLY a JSON object.
+
+PROFILE:
+${buildProfileSummary(g)}
+
+Score each dimension 0-100 with a one-sentence justification:
+
+{
+  "education_pedigree": { "score": 0-100, "reason": "..." },
+  "employer_prestige": { "score": 0-100, "reason": "..." },
+  "career_trajectory": { "score": 0-100, "reason": "..." },
+  "hard_accomplishments": { "score": 0-100, "reason": "cite specific numbers: revenue, users, team size, raises, exits" },
+  "external_validation": { "score": 0-100, "reason": "Forbes, YC, awards, press, patents" },
+  "execution_velocity": { "score": 0-100, "reason": "how fast did they scale things?" },
+  "network_quality": { "score": 0-100, "reason": "connections, followers, endorsements" },
+  "credibility_for_goal": { "score": 0-100, "reason": "does their background actually support what they say they want to do?" },
+  "value_to_others": { "score": 0-100, "reason": "what can they realistically offer someone they meet?" },
+  "goal_specificity": { "score": 0-100, "reason": "how clear and realistic is their networking ask?" },
+  "stage": "pre-idea | idea | early | growth | established | exited",
+  "composite_score": 0-100,
+  "top_3_value_props": ["string", "string", "string"],
+  "red_flags": ["any concerns about credibility or goal alignment"]
+}`;
+  }
+
+  async function callClaude(prompt, maxTokens) {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: maxTokens || 2000,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await resp.json();
+    return data.content?.[0]?.text || "";
+  }
+
+  function parseClaudeJSON(text) {
+    const clean = text.replace(/```json|```/g, "").trim();
+    try { return JSON.parse(clean); } catch(e) {}
+    const arr = clean.match(/\[[\s\S]+\]/); if (arr) { try { return JSON.parse(arr[0]); } catch(e) {} }
+    const obj = clean.match(/\{[\s\S]+\}/); if (obj) { try { return JSON.parse(obj[0]); } catch(e) {} }
+    return null;
+  }
+
+  async function scoreGuest(g) {
+    const ld = g.linkedin_data || {};
+    const exps = (ld.experiences || []).map(e => `${e.title} at ${e.company} (${e.duration || ""}): ${(e.description || "").slice(0, 150)}`).join("\n");
+    const edu = (ld.education || []).map(e => `${e.school} - ${e.degree || ""} ${e.field || ""}`).join("\n");
+    const prompt = `Score this person's professional profile. Return ONLY a JSON object.
+
+NAME: ${ld.full_name || g.name || "Unknown"}
+HEADLINE: ${ld.headline || ""}
+SUMMARY: ${(ld.summary || "").slice(0, 400)}
+WHAT THEY DO: ${g.what_they_do || ""}
+WHO THEY WANT TO MEET: ${g.who_they_want_to_meet || ""}
+EXPERIENCE:\n${exps}
+EDUCATION:\n${edu}
+HONORS: ${(ld.honors || []).join(", ")}
+SKILLS: ${(ld.skills || []).slice(0, 15).join(", ")}
+CONNECTIONS: ${ld.connection_count || "unknown"}
+
+{"education_pedigree":{"score":0,"reason":""},"employer_prestige":{"score":0,"reason":""},"career_trajectory":{"score":0,"reason":""},"hard_accomplishments":{"score":0,"reason":"cite specific numbers"},"external_validation":{"score":0,"reason":"Forbes YC awards"},"execution_velocity":{"score":0,"reason":""},"network_quality":{"score":0,"reason":""},"credibility_for_goal":{"score":0,"reason":"does background support stated goal?"},"value_to_others":{"score":0,"reason":"what can they offer?"},"goal_specificity":{"score":0,"reason":"how clear is their ask?"},"stage":"pre-idea|idea|early|growth|established|exited","composite_score":0,"top_3_value_props":["","",""],"red_flags":[]}`;
+    const text = await callClaude(prompt, 700);
+    return parseClaudeJSON(text);
   }
 
   async function generateMatches() {
     if (guests.length < 2) return;
     setGenerating(true);
     setMatches([]);
+    setPairwiseProgress({ done: 0, total: guests.length + 1 });
 
-    const profiles = guests.map((g, i) => ({
-      id: i,
-      phone: g.phone,
-      summary: buildProfileSummary(g),
-    }));
+    // Step 1: Score each guest individually
+    const scoredGuests = guests.map(g => ({ ...g }));
+    const BATCH = 5;
+    for (let i = 0; i < guests.length; i += BATCH) {
+      const batch = guests.slice(i, i + BATCH);
+      const scores = await Promise.all(batch.map(g => scoreGuest(g)));
+      scores.forEach((score, j) => { if (score) scoredGuests[i + j].rubric = score; });
+      setPairwiseProgress({ done: Math.min(i + BATCH, guests.length), total: guests.length + 1 });
+    }
 
-    const prompt = `You are a smart matchmaker for an exclusive networking event in Los Angeles. 
-Analyze these ${profiles.length} guest profiles and identify the top matches — pairs of people who would genuinely benefit from meeting each other.
+    // Step 2: Match using rubric context
+    const profileBlocks = scoredGuests.map((g, i) => {
+      const r = g.rubric || {};
+      const ld = g.linkedin_data || {};
+      return `[${i}] ${ld.full_name || g.name} | Stage: ${r.stage || "?"} | Score: ${r.composite_score || "?"}/100
+  Credibility for goal: ${r.credibility_for_goal?.score || "?"}/100 — ${r.credibility_for_goal?.reason || ""}
+  Value to others: ${r.value_to_others?.score || "?"}/100 — ${r.value_to_others?.reason || ""}
+  Hard accomplishments: ${r.hard_accomplishments?.score || "?"}/100 — ${r.hard_accomplishments?.reason || ""}
+  Top value props: ${(r.top_3_value_props || []).join("; ")}
+  Red flags: ${(r.red_flags || []).join("; ") || "none"}
+  Wants to meet: ${g.who_they_want_to_meet || "not specified"}
+  What they do: ${g.what_they_do || ld.headline || ""}`;
+    }).join("\n\n");
 
-PROFILES:
-${profiles.map(p => `[${p.id}] ${p.summary}`).join("\n\n---\n\n")}
+    const matchPrompt = `Expert matchmaker for exclusive LA networking event. Guests have been pre-scored on credibility and value.
 
-For each strong match (score 60+), return a JSON array. Aim for the top 15-20 best pairs only.
+CRITICAL RULES:
+1. VALUE EXCHANGE SYMMETRIC: score = min(value_A_to_B, value_B_to_A). If one gets 90 and other gets 10, exchange = 10.
+2. CREDIBILITY MATTERS: credibility_for_goal < 40 means they should NOT be matched with top-tier people in that domain.
+3. STAGE: pre-idea with exited founder = usually poor unless very specific reason.
+4. BE SPECIFIC: cite actual companies, dollars, goals.
 
-Return ONLY a JSON array:
-[
-  {
-    "a": 0,
-    "b": 1,
-    "score": 85,
-    "match_type": "investor meets founder / collaborators / peers / etc",
-    "reason_for_a": "One sentence why person A benefits from meeting person B — be specific, reference their actual goals",
-    "reason_for_b": "One sentence why person B benefits from meeting person A — be specific",
-    "shared": "What they genuinely have in common",
-    "intro_hook": "One punchy sentence to open the intro message e.g. 'Tom, meet Joe — he's building the AI community platform you've been looking for.'"
-  }
-]
+SCORED PROFILES:
+${profileBlocks}
 
-Only include pairs with score 60+. Be ruthlessly specific — reference actual companies, roles, goals from their profiles. Return ONLY the JSON array.`;
+Return ONLY a JSON array of top 15-20 matches (score 60+):
+[{"a":0,"b":1,"score":0,"match_type":"label","rubric":{"value_a_brings_to_b":0,"value_b_brings_to_a":0,"value_exchange_score":0,"credibility_alignment":0,"stage_alignment":0,"goal_compatibility":0,"interest_overlap":0},"reason_for_a":"specific","reason_for_b":"specific","shared":"common ground","potential_red_flags":"any concerns","intro_hook":"punchy opener"}]`;
 
-    try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 4000,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-
-      const data = await resp.json();
-      const text = data.content?.[0]?.text || "";
-      const clean = text.replace(/```json|```/g, "").trim();
-      const match = clean.match(/\[[\s\S]+\]/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        // Attach guest objects
-        const enriched = parsed.map(m => ({
-          ...m,
-          guestA: guests[m.a],
-          guestB: guests[m.b],
-          nameA: guests[m.a]?.linkedin_data?.full_name || guests[m.a]?.name || "Guest A",
-          nameB: guests[m.b]?.linkedin_data?.full_name || guests[m.b]?.name || "Guest B",
-        })).sort((a, b) => b.score - a.score);
-        setMatches(enriched);
-      }
-    } catch (e) {
-      console.error(e);
+    const text = await callClaude(matchPrompt, 5000);
+    const parsed = parseClaudeJSON(text);
+    if (parsed && Array.isArray(parsed)) {
+      const enriched = parsed.map(m => ({
+        ...m,
+        guestA: scoredGuests[m.a],
+        guestB: scoredGuests[m.b],
+        nameA: scoredGuests[m.a]?.linkedin_data?.full_name || scoredGuests[m.a]?.name || "Guest A",
+        nameB: scoredGuests[m.b]?.linkedin_data?.full_name || scoredGuests[m.b]?.name || "Guest B",
+      })).sort((a, b) => b.score - a.score);
+      setMatches(enriched);
+      const scores = {};
+      scoredGuests.forEach(g => { if (g.rubric) scores[g.phone] = g.rubric; });
+      setGuestScores(scores);
     }
     setGenerating(false);
   }
@@ -1466,7 +1708,7 @@ Return a JSON object:
           >
             {generating
               ? <><span style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid #3A3A5A", borderTopColor: "#B388FF", display: "inline-block", animation: "spin 0.8s linear infinite" }} />{mode === "pairwise" ? `SCORING ${pairwiseProgress.done}/${pairwiseProgress.total}...` : `ANALYZING ${guests.length} GUESTS...`}</>
-              : matches.length > 0 ? "↺ REGENERATE" : mode === "pairwise" ? "🔬 RUN PAIRWISE" : "⚡ GENERATE MATCHES"}
+              : matches.length > 0 ? "↺ REGENERATE" : mode === "pairwise" ? "🔬 RUN PAIRWISE" : "⚡ GENERATE MATCHES (with rubric scoring)"}
           </button>
         </div>
       </div>
@@ -1537,9 +1779,31 @@ Return a JSON object:
                 <div style={{ fontSize: "11px", color: "#8888AA", marginTop: "4px", fontStyle: "italic" }}>{m.reason_for_b?.slice(0, 80)}...</div>
               </div>
 
-              {/* Match type */}
-              <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF", background: "#B388FF11", border: "1px solid #B388FF33", borderRadius: "6px", padding: "4px 8px", textAlign: "center" }}>
-                {m.match_type?.toUpperCase()}
+              {/* Match type + rubric mini */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#B388FF", background: "#B388FF11", border: "1px solid #B388FF33", borderRadius: "6px", padding: "4px 8px", textAlign: "center" }}>
+                  {m.match_type?.toUpperCase()}
+                </div>
+                {m.rubric && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    {[
+                      ["VAL EX", m.rubric.value_exchange_score],
+                      ["CRED", m.rubric.credibility_alignment],
+                      ["STAGE", m.rubric.stage_alignment],
+                    ].map(([label, val]) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ fontSize: "8px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", width: "30px" }}>{label}</span>
+                        <div style={{ flex: 1, height: "3px", background: "#1A1A2E", borderRadius: "2px" }}>
+                          <div style={{ height: "100%", borderRadius: "2px", background: val >= 70 ? "#A8FF3E" : val >= 50 ? "#FFB800" : "#FF6B35", width: `${val || 0}%` }} />
+                        </div>
+                        <span style={{ fontSize: "8px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A" }}>{val || "?"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {m.potential_red_flags && m.potential_red_flags !== "none" && (
+                  <div style={{ fontSize: "9px", color: "#FF6B35", background: "#FF6B3511", borderRadius: "4px", padding: "2px 6px" }}>⚠ {m.potential_red_flags.slice(0, 40)}</div>
+                )}
               </div>
 
               {/* Action */}
@@ -1575,6 +1839,66 @@ Return a JSON object:
                 <button onClick={() => setSelectedMatch(null)} style={{ background: "transparent", border: "1px solid #1A1A2E", borderRadius: "8px", width: "32px", height: "32px", color: "#5A5A7A", cursor: "pointer", fontSize: "16px" }}>✕</button>
               </div>
             </div>
+
+            {/* Rubric breakdown from batch scoring */}
+            {selectedMatch.rubric && (
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "12px" }}>MATCH RUBRIC BREAKDOWN</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  {[
+                    ["Value A → B", selectedMatch.rubric.value_a_brings_to_b],
+                    ["Value B → A", selectedMatch.rubric.value_b_brings_to_a],
+                    ["Value Exchange", selectedMatch.rubric.value_exchange_score],
+                    ["Credibility Match", selectedMatch.rubric.credibility_alignment],
+                    ["Stage Alignment", selectedMatch.rubric.stage_alignment],
+                    ["Goal Compatibility", selectedMatch.rubric.goal_compatibility],
+                    ["Interest Overlap", selectedMatch.rubric.interest_overlap],
+                  ].map(([label, val]) => (
+                    <div key={label}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                        <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#5A5A7A" }}>{label.toUpperCase()}</span>
+                        <span style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: val >= 70 ? "#A8FF3E" : val >= 50 ? "#FFB800" : "#FF6B35" }}>{val || "?"}</span>
+                      </div>
+                      <div style={{ height: "4px", background: "#1A1A2E", borderRadius: "2px" }}>
+                        <div style={{ height: "100%", borderRadius: "2px", background: val >= 70 ? "#A8FF3E" : val >= 50 ? "#FFB800" : "#FF6B35", width: `${val || 0}%`, transition: "width 0.5s" }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {selectedMatch.potential_red_flags && selectedMatch.potential_red_flags !== "none" && (
+                  <div style={{ marginTop: "10px", fontSize: "11px", color: "#FF6B35", background: "#FF6B3511", border: "1px solid #FF6B3533", borderRadius: "6px", padding: "8px 10px" }}>
+                    ⚠ {selectedMatch.potential_red_flags}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Individual guest rubrics */}
+            {(selectedMatch.guestA?.rubric || selectedMatch.guestB?.rubric) && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                {[selectedMatch.guestA, selectedMatch.guestB].map((g, idx) => {
+                  const r = g?.rubric;
+                  if (!r) return null;
+                  return (
+                    <div key={idx} style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
+                      <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "8px" }}>{idx === 0 ? selectedMatch.nameA : selectedMatch.nameB} PROFILE SCORE</div>
+                      <div style={{ fontSize: "20px", fontWeight: 700, color: "#B388FF", fontFamily: "'Space Mono', monospace", marginBottom: "8px" }}>{r.composite_score}/100</div>
+                      <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#FFB800", marginBottom: "4px" }}>Stage: {r.stage || "?"}</div>
+                      {(r.top_3_value_props || []).map((v, i) => (
+                        <div key={i} style={{ fontSize: "11px", color: "#8888AA", marginBottom: "3px" }}>✓ {v}</div>
+                      ))}
+                      {(r.red_flags || []).length > 0 && (
+                        <div style={{ marginTop: "6px" }}>
+                          {r.red_flags.map((f, i) => (
+                            <div key={i} style={{ fontSize: "10px", color: "#FF6B35", marginBottom: "2px" }}>⚠ {f}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {deepLoading ? (
               <div style={{ textAlign: "center", padding: "40px", color: "#B388FF", fontFamily: "'Space Mono', monospace", fontSize: "12px" }}>
