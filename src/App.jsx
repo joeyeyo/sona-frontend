@@ -573,8 +573,8 @@ function GuestsTab() {
       {/* Guest table */}
       <div style={{ background: "#0A0A18", border: "1px solid #1A1A2E", borderRadius: "16px", overflow: "hidden" }}>
         {/* Table header */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 130px 80px", gap: "0", padding: "12px 20px", borderBottom: "1px solid #1A1A2E", background: "#07070F" }}>
-          {["NAME / PHONE", "LINKEDIN", "WHAT THEY DO", "MEET", "RSVP", "IMPORT", ""].map(h => (
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 60px 130px 80px", gap: "0", padding: "12px 20px", borderBottom: "1px solid #1A1A2E", background: "#07070F" }}>
+          {["NAME / PHONE", "LINKEDIN", "WHAT THEY DO", "MEET", "RSVP", "AGE", "IMPORT", ""].map(h => (
             <div key={h} style={{ fontSize: "9px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", letterSpacing: "0.12em" }}>{h}</div>
           ))}
         </div>
@@ -606,7 +606,7 @@ function GuestsTab() {
                 onClick={() => setSelectedGuest(guest)}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 130px 80px",
+                  gridTemplateColumns: "2fr 1.5fr 2fr 1fr 1fr 60px 130px 80px",
                   gap: "0",
                   padding: "14px 20px",
                   borderBottom: idx < guests.length - 1 ? "1px solid #0F0F1A" : "none",
@@ -657,6 +657,18 @@ function GuestsTab() {
                   <div style={{ display: "inline-block", fontSize: "10px", fontFamily: "'Space Mono', monospace", padding: "3px 8px", borderRadius: "6px", background: rc.bg, border: `1px solid ${rc.border}`, color: rc.text }}>
                     {rsvp.toUpperCase()}
                   </div>
+                </div>
+
+                {/* Age cell */}
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  {guest.age ? (
+                    <span style={{ fontSize: "12px", color: guest.age_estimated ? "#FFB800" : "#E8E8F0", fontFamily: "'Space Mono', monospace" }}
+                      title={guest.age_estimated ? "Estimated from LinkedIn" : "Confirmed age"}>
+                      {guest.age}{guest.age_estimated ? "~" : ""}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: "10px", color: "#3A3A5A" }}>—</span>
+                  )}
                 </div>
 
                 {/* Import JSON button */}
@@ -745,7 +757,7 @@ function GuestsTab() {
                         try {
                           const resp = await fetch(`${RAILWAY_URL}/guests/${encodeURIComponent(selectedGuest.phone)}`, {
                             method: "PATCH", headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(editForm),
+                            body: JSON.stringify({...editForm, age: editForm.age ? parseInt(editForm.age) : null}),
                           });
                           if (resp.ok) {
                             const updated = { ...selectedGuest, ...editForm };
@@ -763,7 +775,7 @@ function GuestsTab() {
                   </>
                 ) : (
                   <button
-                    onClick={() => { setEditingGuest(selectedGuest.phone); setEditForm({ name: selectedGuest.name || selectedGuest.linkedin_data?.full_name || "", linkedin_url: selectedGuest.linkedin_url || "", what_they_do: selectedGuest.what_they_do || "", who_they_want_to_meet: selectedGuest.who_they_want_to_meet || "", interests: selectedGuest.interests || "" }); }}
+                    onClick={() => { setEditingGuest(selectedGuest.phone); setEditForm({ name: selectedGuest.name || selectedGuest.linkedin_data?.full_name || "", linkedin_url: selectedGuest.linkedin_url || "", what_they_do: selectedGuest.what_they_do || "", who_they_want_to_meet: selectedGuest.who_they_want_to_meet || "", interests: selectedGuest.interests || "", age: selectedGuest.age || "" }); }}
                     style={{ background: "transparent", border: "1px solid #2A2A4A", borderRadius: "8px", padding: "6px 12px", color: "#8888AA", fontFamily: "'Space Mono', monospace", fontSize: "10px", cursor: "pointer" }}
                   >✏ EDIT</button>
                 )}
@@ -788,6 +800,47 @@ function GuestsTab() {
               <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px" }}>
                 <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A", marginBottom: "4px" }}>COMPANY</div>
                 <div style={{ fontSize: "13px", color: "#E8E8F0" }}>{selectedGuest.linkedin_data?.current_company || "—"}</div>
+              </div>
+
+              {/* Age — editable with estimate button */}
+              <div style={{ background: "#0F0F1A", borderRadius: "10px", padding: "12px", gridColumn: "1 / -1" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <div style={{ fontSize: "10px", fontFamily: "'Space Mono', monospace", color: "#3A3A5A" }}>
+                    AGE {selectedGuest.age_estimated ? <span style={{ color: "#FFB800" }}>~ ESTIMATED</span> : selectedGuest.age ? <span style={{ color: "#A8FF3E" }}>✓ CONFIRMED</span> : ""}
+                  </div>
+                  {selectedGuest.linkedin_data && editingGuest !== selectedGuest.phone && (
+                    <button
+                      onClick={async () => {
+                        const resp = await fetch(`${RAILWAY_URL}/guests/estimate-age/${encodeURIComponent(selectedGuest.phone)}`, { method: "POST" });
+                        const data = await resp.json();
+                        if (data.age) {
+                          const updated = { ...selectedGuest, age: data.age, age_estimated: true };
+                          setGuests(prev => prev.map(g => g.phone === selectedGuest.phone ? updated : g));
+                          setSelectedGuest(updated);
+                          alert(`Age estimated: ${data.age} (via ${data.method})`);
+                        } else {
+                          alert(data.error || "Could not estimate age from LinkedIn data");
+                        }
+                      }}
+                      style={{ background: "#FFB80011", border: "1px solid #FFB80033", borderRadius: "6px", padding: "3px 10px", color: "#FFB800", fontFamily: "'Space Mono', monospace", fontSize: "9px", cursor: "pointer" }}
+                    >
+                      ✨ ESTIMATE FROM LINKEDIN
+                    </button>
+                  )}
+                </div>
+                {editingGuest === selectedGuest.phone ? (
+                  <input
+                    value={editForm.age || ""}
+                    onChange={e => setEditForm(f => ({ ...f, age: e.target.value }))}
+                    placeholder="Enter age (overrides estimate)"
+                    type="number" min="18" max="100"
+                    style={{ background: "#1A1A2E", border: "1px solid #A8FF3E44", borderRadius: "6px", padding: "6px 10px", color: "#E8E8F0", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                  />
+                ) : (
+                  <div style={{ fontSize: "20px", fontWeight: 600, color: selectedGuest.age_estimated ? "#FFB800" : "#E8E8F0", fontFamily: "'Space Mono', monospace" }}>
+                    {selectedGuest.age || <span style={{ fontSize: "13px", color: "#3A3A5A" }}>—</span>}
+                  </div>
+                )}
               </div>
             </div>
 
